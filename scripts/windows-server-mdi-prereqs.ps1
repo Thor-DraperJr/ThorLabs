@@ -62,8 +62,9 @@ function Create-MDIServiceAccount {
             return $existingAccount
         }
         
-        # Create service account with strong password
-        $password = ConvertTo-SecureString "$(Get-Random -Minimum 100000 -Maximum 999999)P@ssw0rd!" -AsPlainText -Force
+        # Create service account with cryptographically secure random password
+        $randomPassword = -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43,45,47,61,63,64,95) | Get-Random -Count 20 | ForEach-Object {[char]$_})
+        $password = ConvertTo-SecureString $randomPassword -AsPlainText -Force
         
         # Get or create Service Accounts OU
         $serviceAccountsOU = "OU=ServiceAccounts,DC=" + $Domain.Replace(".", ",DC=")
@@ -84,14 +85,17 @@ function Create-MDIServiceAccount {
         Grant-MDIServiceAccountPermissions -ServiceAccount $newUser -Domain $Domain
         
         Write-Host "MDI service account created successfully: $ServiceAccountName" -ForegroundColor Green
-        Write-Host "Password has been set to a random secure value." -ForegroundColor Cyan
+        Write-Host "IMPORTANT: MDI service account password: $randomPassword" -ForegroundColor Yellow
+        Write-Host "Please save this password securely for MDI configuration." -ForegroundColor Yellow
         
         # Save account info to file for reference
         $accountInfo = @{
             "ServiceAccount" = $ServiceAccountName
             "Domain" = $Domain
+            "Password" = $randomPassword
             "CreatedDate" = Get-Date
             "Purpose" = "Microsoft Defender for Identity"
+            "Note" = "Store this password securely and remove this file after use"
         }
         $accountInfo | ConvertTo-Json | Out-File "C:\ThorLabs\MDI-ServiceAccount-Info.json"
         

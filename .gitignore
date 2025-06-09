@@ -1,0 +1,27 @@
+# Service account information files (contain passwords)
+**/ServiceAccount-Info.json
+**/MDI-ServiceAccount-Info.json
+
+# Local parameter files with real passwords
+*.parameters.local.json
+
+# Azure CLI output
+.azure/
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE specific files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+dist/
+build/

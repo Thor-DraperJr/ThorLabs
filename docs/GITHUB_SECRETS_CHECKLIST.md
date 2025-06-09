@@ -10,7 +10,10 @@ Keep this file up to date with all the secrets and variables your workflows requ
   Your Azure Subscription ID (**do not commit your actual subscription ID to the repo;** use a placeholder or document to add it as a secret in GitHub Actions).
 
 - `ADMIN_PASSWORD`  
-  The admin password for your Azure VM deployments (never commit this to source control)
+  The admin password for your Ubuntu VM deployments (never commit this to source control)
+
+- `WINDOWS_ADMIN_PASSWORD`  
+  The admin password for your Windows Server VM deployments (never commit this to source control). Used for Windows Server 2022 Entra ID/MDI deployments.
 
 - `AZURE_CREDENTIALS`  
   (If using GitHub Actions to deploy to Azure) Service principal credentials in JSON format for authentication.  
@@ -38,6 +41,7 @@ See `docs/DEPLOY_WORKFLOW.md` for a full example workflow file.
 env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+  WINDOWS_ADMIN_PASSWORD: ${{ secrets.WINDOWS_ADMIN_PASSWORD }}
   AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
 ```
 

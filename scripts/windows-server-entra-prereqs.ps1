@@ -113,8 +113,9 @@ function Create-ServiceAccounts {
         $serviceAccountsOU = "OU=ServiceAccounts,DC=" + $DomainName.Replace(".", ",DC=")
         New-ADOrganizationalUnit -Name "ServiceAccounts" -Path "DC=$($DomainName.Replace('.', ',DC='))" -ErrorAction SilentlyContinue
         
-        # Create Azure AD Connect service account
-        $aadConnectPassword = ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force
+        # Create Azure AD Connect service account with secure random password
+        $randomPassword = -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43,45,47,61,63,64,95) | Get-Random -Count 16 | ForEach-Object {[char]$_})
+        $aadConnectPassword = ConvertTo-SecureString $randomPassword -AsPlainText -Force
         New-ADUser `
             -Name "AADConnect-SVC" `
             -SamAccountName "AADConnect-SVC" `
@@ -125,6 +126,20 @@ function Create-ServiceAccounts {
             -Description "Azure AD Connect Service Account"
             
         Write-Host "Service accounts created successfully." -ForegroundColor Green
+        Write-Host "IMPORTANT: AADConnect-SVC password: $randomPassword" -ForegroundColor Yellow
+        Write-Host "Please save this password securely and update Azure AD Connect configuration accordingly." -ForegroundColor Yellow
+        
+        # Save password to secure file for administrator reference
+        $accountInfo = @{
+            "ServiceAccount" = "AADConnect-SVC"
+            "Domain" = $DomainName
+            "Password" = $randomPassword
+            "CreatedDate" = Get-Date
+            "Purpose" = "Azure AD Connect Service Account"
+            "Note" = "Store this password securely and remove this file after use"
+        }
+        $accountInfo | ConvertTo-Json | Out-File "C:\ThorLabs\AzureADConnect\ServiceAccount-Info.json" -Encoding UTF8
+        Write-Host "Service account details saved to C:\ThorLabs\AzureADConnect\ServiceAccount-Info.json" -ForegroundColor Cyan
     }
     catch {
         Write-Warning "Failed to create service accounts: $($_.Exception.Message)"
