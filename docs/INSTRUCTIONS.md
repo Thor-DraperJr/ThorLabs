@@ -77,4 +77,4 @@ az deployment group create \
 
 ---
 
-For secrets and workflow setup, see `GITHUB_SECRETS_CHECKLIST.md`.
+For secrets and workflow setup, see `docs/GITHUB_SECRETS_CHECKLIST.md`.
