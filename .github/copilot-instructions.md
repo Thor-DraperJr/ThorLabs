@@ -1,6 +1,8 @@
 # GitHub Copilot Instructions for ThorLabs Repository
 
-This document provides comprehensive guidelines for GitHub Copilot suggestions and contributors working on the ThorLabs Azure lab environment repository.
+This document serves as the **single source of truth** for all contribution guidelines, accuracy standards, and workflow requirements in the ThorLabs Azure lab environment repository. It provides comprehensive guidelines for GitHub Copilot suggestions and contributors to ensure consistency, quality, and workflow success without relying on automated linting or consistency check tools.
+
+**Purpose**: This file establishes clear standards that contributors and GitHub Copilot should follow to maintain accuracy, consistency, and adherence to Microsoft/Azure native approaches throughout the repository.
 
 ## Core Principles
 
