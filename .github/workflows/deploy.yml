@@ -12,7 +12,6 @@ jobs:
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-      WINDOWS_ADMIN_PASSWORD: ${{ secrets.WINDOWS_ADMIN_PASSWORD }}
       
     steps:
       - name: Checkout code
@@ -39,9 +38,9 @@ jobs:
           echo "Validating Windows server template..."
           az deployment group validate \
             --resource-group thorlabs-rg \
-            --template-file bicep/windows-server-entra-id.bicep \
-            --parameters adminPassword="$WINDOWS_ADMIN_PASSWORD" \
-            --parameters @bicep/windows-server-entra-id.parameters.json
+            --template-file bicep/windows-server-base.bicep \
+            --parameters adminPassword="$ADMIN_PASSWORD" \
+            --parameters @bicep/windows-server-base.parameters.json
 
       - name: Deploy Ubuntu Server (VM1)
         run: |
@@ -56,13 +55,13 @@ jobs:
 
       - name: Deploy Windows Server (VM2)
         run: |
-          echo "Deploying Windows Server 2022 for Entra ID Connect and MDI..."
+          echo "Deploying Windows Server 2022 base configuration..."
           az deployment group create \
             --name "thorlabs-windows-deployment-$(date +%Y%m%d-%H%M%S)" \
             --resource-group thorlabs-rg \
-            --template-file bicep/windows-server-entra-id.bicep \
-            --parameters adminPassword="$WINDOWS_ADMIN_PASSWORD" \
-            --parameters @bicep/windows-server-entra-id.parameters.json \
+            --template-file bicep/windows-server-base.bicep \
+            --parameters adminPassword="$ADMIN_PASSWORD" \
+            --parameters @bicep/windows-server-base.parameters.json \
             --verbose
 
       - name: Deploy Azure Policies
@@ -83,13 +82,11 @@ jobs:
           echo "=== ThorLabs Lab Environment Deployment Complete ==="
           echo "Resources deployed:"
           echo "  - Ubuntu Server VM (thorlabs-vm1-eastus2)"
-          echo "  - Windows Server 2022 VM (thorlabs-vm2-eastus2) for Entra ID Connect and MDI"
+          echo "  - Windows Server 2022 VM (thorlabs-vm2-eastus2) with basic configuration"
           echo "  - Azure Policy definitions for governance"
           echo ""
           echo "Next steps:"
           echo "  1. Configure Ubuntu server for your lab workloads"
-          echo "  2. Run PowerShell setup scripts on Windows server:"
-          echo "     - scripts/windows-server-entra-prereqs.ps1"
-          echo "     - scripts/windows-server-mdi-prereqs.ps1"
+          echo "  2. Connect to Windows server via RDP for additional configuration"
           echo "  3. Review deployed resources in Azure portal"
           echo "  4. Verify auto-shutdown policies are applied for cost control"

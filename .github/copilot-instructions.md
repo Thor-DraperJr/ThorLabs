@@ -54,7 +54,7 @@ ThorLabs/
 │   ├── main.bicep         # Ubuntu server template
 │   └── main.parameters.json
 ├── bicep/                  # Additional Bicep templates
-│   ├── windows-server-entra-id.bicep
+│   ├── windows-server-base.bicep
 │   └── *.parameters.json
 ├── scripts/                # PowerShell and shell scripts
 ├── policies/               # Azure Policy definitions

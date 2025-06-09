@@ -67,7 +67,7 @@ thorlabs-vm2-eastus
 - [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — GitHub Actions workflow for automated deployment of both Ubuntu and Windows servers
 - [`.github/COPILOT_INSTRUCTIONS.md`](.github/COPILOT_INSTRUCTIONS.md) — Comprehensive guidelines for GitHub Copilot and contributors
 - [`infra/`](infra/) — Main Bicep templates and parameter files (Ubuntu server)
-- [`bicep/`](bicep/) — Additional Bicep templates (Windows Server 2022 for Entra ID Connect and MDI)
+- [`bicep/`](bicep/) — Additional Bicep templates (Windows Server 2022 base configuration)
 - [`scripts/`](scripts/) — PowerShell scripts for server configuration
 - [`policies/`](policies/) — Azure Policy definitions for governance and compliance
 - [`history.md`](history.md) — Log of manual actions and commands
@@ -77,7 +77,7 @@ thorlabs-vm2-eastus
 The GitHub Actions workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) automatically deploys the complete lab environment on every push to the `main` branch, including:
 
 - **Ubuntu Server VM** (`thorlabs-vm1-eastus2`) - General purpose Linux workstation
-- **Windows Server 2022 VM** (`thorlabs-vm2-eastus2`) - Configured for Entra ID Connect and Microsoft Defender for Identity
+- **Windows Server 2022 VM** (`thorlabs-vm2-eastus2`) - Basic Windows Server configuration with RDP access
 - **Azure Policy definitions** - For governance and cost control
 - **Network infrastructure** - Virtual networks, security groups, and public IPs
 

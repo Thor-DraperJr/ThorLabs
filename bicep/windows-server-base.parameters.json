@@ -9,31 +9,16 @@
       "value": "thorlabs-vm2-eastus2"
     },
     "adminUsername": {
-      "value": "thorlabsadmin"
+      "value": "azureuser"
     },
     "adminPassword": {
-      "value": "PLACEHOLDER-USE-GITHUB-SECRET"
+      "value": "ThorLabs2024!"
     },
     "vmSize": {
-      "value": "Standard_D2s_v3"
-    },
-    "vnetAddressPrefix": {
-      "value": "10.1.0.0/16"
-    },
-    "subnetAddressPrefix": {
-      "value": "10.1.1.0/24"
-    },
-    "domainControllerIP": {
-      "value": "10.1.1.10"
+      "value": "Standard_B2s"
     },
     "allowedSourceIPs": {
       "value": ["0.0.0.0/0"]
-    },
-    "osDiskType": {
-      "value": "Premium_LRS"
-    },
-    "osDiskSizeGB": {
-      "value": 128
     }
   }
 }
