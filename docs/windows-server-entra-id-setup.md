@@ -16,7 +16,8 @@ ThorLabs/
 │   ├── REPO_GUIDE.md                  # Repository structure guide
 │   └── windows-server-entra-id-setup.md  # This document
 ├── bicep/                             # Bicep templates (NEW)
-│   └── windows-server-entra-id.bicep  # Windows Server 2022 VM template
+│   ├── windows-server-entra-id.bicep  # Windows Server 2022 VM template
+│   └── windows-server-entra-id.parameters.json  # Parameter file
 ├── scripts/                           # PowerShell scripts (NEW)
 │   ├── windows-server-entra-prereqs.ps1  # Entra ID Connect prerequisites
 │   └── windows-server-mdi-prereqs.ps1    # MDI prerequisites
@@ -71,6 +72,42 @@ Deploy a Windows Server 2022 virtual machine optimized for:
 
 ---
 
+## Quick Start Deployment
+
+For users who want to deploy quickly with default settings:
+
+### One-Command Deployment
+```bash
+# Ensure you're in the ThorLabs repository root
+cd /path/to/ThorLabs
+
+# Create resource group if it doesn't exist
+az group create --name thorlabs-rg --location eastus2
+
+# Deploy with default parameters
+az deployment group create \
+  --resource-group thorlabs-rg \
+  --template-file bicep/windows-server-entra-id.bicep \
+  --parameters @bicep/windows-server-entra-id.parameters.json
+```
+
+**Note:** The default parameters include a placeholder password. For production use, override the `adminPassword` parameter:
+```bash
+az deployment group create \
+  --resource-group thorlabs-rg \
+  --template-file bicep/windows-server-entra-id.bicep \
+  --parameters @bicep/windows-server-entra-id.parameters.json \
+  --parameters adminPassword="YourSecurePassword123!"
+```
+
+### Expected Deployment Time
+- Infrastructure deployment: ~10-15 minutes
+- Windows Server boot and configuration: ~5-10 minutes
+- Script execution for AD DS setup: ~15-20 minutes
+- **Total time:** ~30-45 minutes for complete setup
+
+---
+
 ## Deployment Instructions
 
 ### Step 1: Deploy the Infrastructure
@@ -82,6 +119,20 @@ Deploy a Windows Server 2022 virtual machine optimized for:
 
 2. **Deploy the Bicep template:**
    ```bash
+   # Option 1: Using parameter file (recommended)
+   az deployment group create \
+     --resource-group thorlabs-rg \
+     --template-file bicep/windows-server-entra-id.bicep \
+     --parameters @bicep/windows-server-entra-id.parameters.json
+   
+   # Option 2: Override specific parameters
+   az deployment group create \
+     --resource-group thorlabs-rg \
+     --template-file bicep/windows-server-entra-id.bicep \
+     --parameters @bicep/windows-server-entra-id.parameters.json \
+     --parameters adminPassword="YourSecurePassword123!"
+   
+   # Option 3: Inline parameters (not recommended for production)
    az deployment group create \
      --resource-group thorlabs-rg \
      --template-file bicep/windows-server-entra-id.bicep \
@@ -349,17 +400,66 @@ az vm get-instance-view --resource-group thorlabs-rg --name thorlabs-vm2-eastus2
 ## Integration with ThorLabs Environment
 
 ### GitHub Actions Integration
-The deployment can be automated through the existing GitHub Actions workflow by:
+The deployment can be automated through the existing GitHub Actions workflow by adding a step to the deployment job:
 
-1. **Adding deployment step:**
-   ```yaml
-   - name: Deploy Windows Server for Entra ID
-     run: |
-       az deployment group create \
-         --resource-group thorlabs-rg \
-         --template-file bicep/windows-server-entra-id.bicep \
-         --parameters adminPassword="$ADMIN_PASSWORD"
-   ```
+```yaml
+- name: Deploy Windows Server for Entra ID
+  run: |
+    az deployment group create \
+      --resource-group thorlabs-rg \
+      --template-file bicep/windows-server-entra-id.bicep \
+      --parameters @bicep/windows-server-entra-id.parameters.json \
+      --parameters adminPassword="$ADMIN_PASSWORD"
+```
+
+**Alternative: Separate workflow for Windows Server deployment:**
+Create `.github/workflows/deploy-windows-server.yml`:
+```yaml
+name: Deploy Windows Server for Entra ID and MDI
+
+on:
+  workflow_dispatch:
+    inputs:
+      vmName:
+        description: 'VM Name'
+        required: false
+        default: 'thorlabs-vm2-eastus2'
+      adminUsername:
+        description: 'Admin Username'
+        required: false
+        default: 'thorlabsadmin'
+
+jobs:
+  deploy-windows:
+    runs-on: ubuntu-latest
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure Subscription
+        run: |
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+
+      - name: Deploy Windows Server Bicep Template
+        run: |
+          az deployment group create \
+            --resource-group thorlabs-rg \
+            --template-file bicep/windows-server-entra-id.bicep \
+            --parameters @bicep/windows-server-entra-id.parameters.json \
+            --parameters adminPassword="$ADMIN_PASSWORD" \
+            --parameters vmName="${{ github.event.inputs.vmName }}" \
+            --parameters adminUsername="${{ github.event.inputs.adminUsername }}" \
+            --verbose
+```
 
 ### Cost Control Integration
 - Resources follow existing auto-shutdown policies
