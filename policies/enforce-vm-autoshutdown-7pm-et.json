@@ -1,0 +1,63 @@
+{
+  "properties": {
+    "displayName": "Audit VMs for Auto-Shutdown Tags (7 PM ET)",
+    "description": "This policy audits virtual machines to ensure they have the required auto-shutdown tags: AutoShutdown_Time set to '19:00' and AutoShutdown_TimeZone set to 'Eastern Standard Time'. VMs without these tags will be flagged as non-compliant.",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "metadata": {
+      "category": "Compute",
+      "version": "1.0.0"
+    },
+    "parameters": {
+      "requiredShutdownTime": {
+        "type": "String",
+        "defaultValue": "19:00",
+        "metadata": {
+          "displayName": "Required Shutdown Time",
+          "description": "The required value for the AutoShutdown_Time tag (24-hour format)"
+        }
+      },
+      "requiredTimeZone": {
+        "type": "String", 
+        "defaultValue": "Eastern Standard Time",
+        "metadata": {
+          "displayName": "Required Time Zone",
+          "description": "The required value for the AutoShutdown_TimeZone tag"
+        }
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Compute/virtualMachines"
+          },
+          {
+            "anyOf": [
+              {
+                "field": "tags['AutoShutdown_Time']",
+                "notEquals": "[parameters('requiredShutdownTime')]"
+              },
+              {
+                "field": "tags['AutoShutdown_TimeZone']",
+                "notEquals": "[parameters('requiredTimeZone')]"
+              },
+              {
+                "field": "tags['AutoShutdown_Time']",
+                "exists": "false"
+              },
+              {
+                "field": "tags['AutoShutdown_TimeZone']", 
+                "exists": "false"
+              }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "effect": "audit"
+      }
+    }
+  }
+}

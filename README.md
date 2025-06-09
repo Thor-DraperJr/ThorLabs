@@ -18,6 +18,7 @@ This repository helps you automate, document, and control your Azure lab environ
 - Deploy and manage Azure resources for a lab environment using Bicep templates
 - Automate deployments with an Azure Pipeline
 - Keep costs low by shutting down or deallocating resources when not needed
+- Enforce governance and compliance through Azure Policy definitions
 - Document all PowerShell commands and maintain a history file for reference
 - Use a consistent, descriptive naming scheme for all resources
 
@@ -48,6 +49,7 @@ thorlabs-vm2-eastus
 - [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — Checklist and instructions for GitHub Actions secrets
 - [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — GitHub Actions workflow for automated Azure deployment
 - [`infra/`](infra/) — Bicep templates and parameter files
+- [`policies/`](policies/) — Azure Policy definitions for governance and compliance
 - [`history.md`](history.md) — Log of manual actions and commands
 
 ---
