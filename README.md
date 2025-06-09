@@ -1,5 +1,22 @@
 # ThorLabs Lab Environment: Azure Pipeline with Bicep
 
+## Quick Start
+
+Deploy the ThorLabs lab environment to your Azure subscription with one click:
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FThor-DraperJr%2FThorLabs%2Fmain%2Finfra%2Fmain.bicep)
+
+**After clicking the button:**
+1. You'll be redirected to the Azure portal
+2. Sign in to your Azure account if prompted
+3. Select your subscription and resource group (or create a new one)
+4. Provide the required parameters:
+   - `adminUsername`: Username for the VM administrator
+   - `adminPassword`: Secure password for the VM (will be prompted securely)
+5. Review and create the deployment
+
+**Note:** The template will deploy a Ubuntu VM with associated networking resources. For detailed manual deployment steps, parameter customization, and cost control options, see [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md).
+
 ---
 
 ## Purpose & How to Use This Repo
@@ -44,7 +61,7 @@ thorlabs-vm2-eastus
 
 ## Repository Structure
 
-- [`README.md`](README.md) — High-level overview and quick reference
+- [`README.md`](README.md) — High-level overview, Quick Start deploy button, and quick reference
 - [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md) — Step-by-step deployment and management instructions
 - [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — Checklist and instructions for GitHub Actions secrets
 - [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — GitHub Actions workflow for automated Azure deployment
