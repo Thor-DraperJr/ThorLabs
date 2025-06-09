@@ -2,11 +2,14 @@
 
 ---
 
-## Purpose
+## Purpose & How to Use This Repo
 
-Welcome! This repo is my journey into managing a lab environment in Azure using Infrastructure as Code (IaC) with Bicep templates. The goal: automate, document, and control my Azure resources—while keeping costs low by turning things off when not in use.
+This repository helps you automate, document, and control your Azure lab environment using Infrastructure as Code (IaC) with Bicep templates and GitHub Actions. It is organized for clarity, security, and repeatability:
 
-This is my first time using Bicep, so everything here is written to be simple, clear, and repeatable. If you’re new to Bicep or Azure pipelines, you’re in the right place.
+- **Start here in `README.md`** for a high-level overview, project goals, and naming conventions.
+- **See the `docs/` folder** for detailed instructions (`INSTRUCTIONS.md`) and secrets management (`GITHUB_SECRETS_CHECKLIST.md`).
+- **All Bicep templates and parameters** are in the `infra/` folder.
+- **Document all manual commands** in `history.md` for traceability.
 
 ---
 
@@ -38,100 +41,22 @@ thorlabs-vm2-eastus
 
 ---
 
-## Getting Started with Bicep
+## Repository Structure
 
-### Prerequisites
-
-- [Visual Studio Code](https://code.visualstudio.com/)
-- [Bicep CLI](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/install)
-- [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
-- Azure subscription with permissions to deploy resources
-
-### 1. Clone the Repo
-
-```bash
-git clone <your-repo-url>
-cd ThorLabs
-```
-
-### 2. Authenticate with Azure
-
-```bash
-az login
-az account set --subscription <your-subscription-id>
-```
-
-### 3. Create a Resource Group
-
-```bash
-az group create --name thorlabs-lab --location eastus
-```
-
-### 4. Deploy a Bicep Template
-
-```bash
-az deployment group create \
-  --resource-group thorlabs-lab \
-  --template-file ./infra/main.bicep \
-  --parameters @./infra/main.parameters.json
-```
-
-- Edit the Bicep and parameter files as needed for your environment.
+- [`README.md`](README.md) — High-level overview and quick reference
+- [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md) — Step-by-step deployment and management instructions
+- [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — Checklist and instructions for GitHub Actions secrets
+- [`infra/`](infra/) — Bicep templates and parameter files
+- [`history.md`](history.md) — Log of manual actions and commands
 
 ---
 
-## Cost Control: Turning Off Resources
+## Security & Best Practices
 
-To keep costs low, deallocate or stop resources when not in use. Here are some common PowerShell/Azure CLI commands:
-
-### Deallocate a Virtual Machine
-
-```bash
-az vm deallocate --resource-group thorlabs-lab --name thorlabs-vm1-eastus
-```
-
-### Stop an App Service
-
-```bash
-az webapp stop --resource-group thorlabs-lab --name thorlabs-app1-eastus
-```
-
-### List All Running VMs
-
-```bash
-az vm list -d -o table
-```
+- **Never commit real secrets, passwords, or subscription IDs to the repo.** Use placeholders and store sensitive values as GitHub Actions secrets. For a detailed checklist, see [GitHub Secrets Checklist](docs/GITHUB_SECRETS_CHECKLIST.md).
+- Reference secrets in your workflows using `${{ secrets.SECRET_NAME }}`.
+- Update documentation and checklists as your environment evolves.
 
 ---
 
-## Documenting PowerShell Commands
-
-All PowerShell or CLI commands used for deployments, management, or troubleshooting should be added to `history.md` in the root of this repo. This keeps a running log of what was done, when, and why.
-
-**Example entry in `history.md`:**
-
-```
-2025-06-09: Deployed initial lab environment using main.bicep
-2025-06-10: Deallocated VM to save costs
-```
-
----
-
-## Next Steps
-
-- Add your Bicep templates to the `infra/` folder
-- Update `main.parameters.json` for your environment
-- Commit and push changes to trigger your Azure Pipeline (if configured)
-- Check `history.md` for a log of all actions
-
----
-
-## References
-
-- [Bicep Documentation](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/)
-- [Azure CLI Reference](https://docs.microsoft.com/en-us/cli/azure/)
-- [Azure Naming Tool](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/naming-and-tagging)
-
----
-
-Happy automating! If you have downtime, try something new and document it here. That’s how this all started.
+For detailed instructions and secrets management, see the `docs/` folder.
