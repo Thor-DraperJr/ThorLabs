@@ -18,8 +18,8 @@ This repo is designed to help you automate, document, and control your Azure res
 
 - `README.md` — High-level overview, project goals, naming conventions, and quick reference
 - `docs/` — Contains detailed instructions, deployment guides, and checklists for secrets and variables
-- `infra/` — Main Bicep templates and parameter files for Ubuntu server deployment
-- `bicep/` — Additional Bicep templates for Windows Server 2022 base configuration
+- `infra/` — Unified Bicep template and parameter files for complete lab environment (Ubuntu + Windows VMs)
+- `bicep/` — Legacy Bicep templates (for reference)
 - `scripts/` — PowerShell scripts for server configuration and management
 - `policies/` — Azure Policy definitions for governance and compliance
 - `.github/` — GitHub Actions workflows and contributor guidelines
@@ -34,8 +34,8 @@ This repo is designed to help you automate, document, and control your Azure res
 - `docs/DEPLOY_WORKFLOW.md`: Detailed documentation of the automated deployment workflow
 - `.github/COPILOT_INSTRUCTIONS.md`: Comprehensive guidelines for GitHub Copilot and contributors
 - `.github/workflows/deploy.yml`: Automated deployment workflow for both Ubuntu and Windows servers
-- `infra/main.bicep`: Main Bicep template for Ubuntu server deployment
-- `bicep/windows-server-base.bicep`: Bicep template for basic Windows Server 2022 deployment
+- `infra/lab.bicep`: Unified Bicep template for complete lab environment (Ubuntu + Windows VMs)
+- `bicep/windows-server-base.bicep`: Legacy Bicep template (for reference)
 - `scripts/windows-server-*.ps1`: PowerShell scripts for Windows server configuration
 
 ---
