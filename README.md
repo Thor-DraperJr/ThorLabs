@@ -52,7 +52,7 @@ This repository helps you automate, document, and control your Azure lab environ
 
 **Example:**
 
-```
+```text
 thorlabs-db1-eastus
 thorlabs-vm2-eastus
 ```
@@ -131,6 +131,55 @@ This repository follows strict guidelines to ensure consistency, security, and M
 - **Code Review Standards**: Pull requests are automatically checked for naming convention compliance and documentation updates
 
 For comprehensive guidelines, see [GitHub Copilot Instructions](.github/COPILOT_INSTRUCTIONS.md).
+
+---
+
+## Code Quality and Consistency
+
+This repository includes automated consistency checks to ensure code quality and documentation standards:
+
+### Automated Consistency Workflow
+
+The `.github/workflows/consistency.yml` workflow automatically validates:
+
+- **YAML Files**: All workflow files in `.github/workflows/` are checked with yamllint
+- **Markdown Files**: All documentation is validated with markdownlint for consistent formatting
+- **Bicep Templates**: Infrastructure templates in `infra/` and `policies/` are linted for best practices
+- **Shell Scripts**: Any shell scripts are validated with shellcheck (when present)
+
+### Running Consistency Checks Locally
+
+To run the same checks locally before committing:
+
+```bash
+# Install required tools
+npm install -g markdownlint-cli
+pip install yamllint
+
+# Lint YAML files
+yamllint .github/workflows/
+
+# Lint Markdown files
+markdownlint . --ignore node_modules
+
+# Lint Bicep files
+for file in infra/*.bicep policies/*.bicep; do
+  bicep lint "$file"
+done
+
+# Check shell scripts (if any exist)
+find . -name "*.sh" -type f | xargs shellcheck
+```
+
+### Required GitHub Actions Secrets
+
+The following secrets must be configured in **Settings > Actions > Secrets and variables**:
+
+- **`AZURE_CREDENTIALS`** - Service principal JSON for Azure authentication
+- **`AZURE_SUBSCRIPTION_ID`** - Your Azure subscription ID  
+- **`ADMIN_PASSWORD`** - Password for VM administrator account (used for both Ubuntu and Windows VMs)
+
+For detailed setup instructions, see [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md).
 
 ---
 

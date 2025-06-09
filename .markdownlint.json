@@ -1,0 +1,21 @@
+{
+  "default": true,
+  "MD013": {
+    "line_length": 300,
+    "code_blocks": false,
+    "tables": false,
+    "headers": false
+  },
+  "MD022": false,
+  "MD031": false,
+  "MD032": false,
+  "MD033": false,
+  "MD041": false,
+  "MD029": {
+    "style": "ordered"
+  },
+  "MD040": {
+    "allowed_languages": ["", "bash", "yaml", "json", "bicep", "powershell", "text"]
+  },
+  "MD047": false
+}

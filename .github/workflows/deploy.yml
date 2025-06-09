@@ -1,3 +1,6 @@
+# GitHub Actions workflow for automated deployment of ThorLabs lab environment
+# Deploys unified Bicep template with Ubuntu and Windows Server VMs plus shared networking
+# Triggered on push to main branch or manual dispatch with optional clean redeployment
 name: Deploy Azure Lab Environment
 
 on:

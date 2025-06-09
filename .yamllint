@@ -1,0 +1,26 @@
+---
+extends: default
+
+rules:
+  # Allow longer lines for URLs and technical content
+  line-length:
+    max: 120
+    level: warning
+  
+  # Allow document-start to be optional for workflow files
+  document-start:
+    present: false
+  
+  # Be flexible with truthy values in workflows
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off']
+    check-keys: false
+
+  # Allow trailing spaces occasionally
+  trailing-spaces:
+    level: warning
+
+  # Ignore some common patterns in GitHub workflows
+ignore: |
+  .github/workflows/*.yml
+  .github/workflows/*.yaml

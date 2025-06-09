@@ -1,3 +1,5 @@
+# GitHub Actions workflow for manual cleanup of ThorLabs lab environment
+# Safely deletes the thorlabs-rg resource group after user confirmation
 name: Cleanup Azure Lab Environment
 
 on:

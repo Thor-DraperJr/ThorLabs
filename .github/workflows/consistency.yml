@@ -1,0 +1,63 @@
+---
+name: Documentation and Code Consistency Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  consistency-checks:
+    runs-on: ubuntu-latest
+    name: Lint and validate repository files
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Install Bicep CLI
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x ./bicep
+          sudo mv ./bicep /usr/local/bin/bicep
+          bicep --version
+
+      - name: Lint YAML files
+        run: |
+          echo "Running yamllint on GitHub workflows..."
+          yamllint .github/workflows/
+
+      - name: Lint Markdown files
+        run: |
+          echo "Running markdownlint on all Markdown files..."
+          markdownlint . --ignore node_modules
+
+      - name: Lint Bicep files
+        run: |
+          echo "Running Bicep linter on infrastructure templates..."
+          for file in infra/*.bicep policies/*.bicep; do
+            if [ -f "$file" ]; then
+              echo "Linting $file..."
+              bicep lint "$file"
+            fi
+          done
+
+      - name: Check for shell scripts and lint if present
+        run: |
+          echo "Checking for shell scripts..."
+          SHELL_FILES=$(find . -name "*.sh" -type f | head -10)
+          if [ -n "$SHELL_FILES" ]; then
+            echo "Found shell scripts, running shellcheck..."
+            echo "$SHELL_FILES" | xargs shellcheck
+          else
+            echo "No shell scripts found to lint."
+          fi

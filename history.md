@@ -3,7 +3,8 @@
 This file documents all manual commands run for this ThorLabs Azure environment for traceability and reference.
 
 ## Format
-```
+
+```text
 Date: YYYY-MM-DD
 User: [username]
 Command: [command executed]
