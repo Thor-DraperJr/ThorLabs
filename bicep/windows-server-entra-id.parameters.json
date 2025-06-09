@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus2"
+    },
+    "vmName": {
+      "value": "thorlabs-vm2-eastus2"
+    },
+    "adminUsername": {
+      "value": "thorlabsadmin"
+    },
+    "adminPassword": {
+      "value": "ThorLabs2024!DC"
+    },
+    "vmSize": {
+      "value": "Standard_D2s_v3"
+    }
+  }
+}
