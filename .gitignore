@@ -1,6 +1,5 @@
 # Service account information files (contain passwords)
 **/ServiceAccount-Info.json
-**/MDI-ServiceAccount-Info.json
 
 # Local parameter files with real passwords
 *.parameters.local.json

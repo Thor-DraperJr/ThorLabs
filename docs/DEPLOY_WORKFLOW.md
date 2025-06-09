@@ -14,9 +14,9 @@ The workflow deploys the following Azure resources:
    - Network: `10.0.0.0/16` address space
 
 2. **Windows Server 2022 VM** (`thorlabs-vm2-eastus2`)
-   - Configured for Entra ID Connect and Microsoft Defender for Identity
-   - Template: `bicep/windows-server-entra-id.bicep`
-   - Network: `10.1.0.0/16` address space
+   - Basic Windows Server configuration with RDP access
+   - Template: `bicep/windows-server-base.bicep`
+   - Network: `10.2.0.0/16` address space
 
 3. **Azure Policy Definitions**
    - VM auto-shutdown enforcement
@@ -35,8 +35,7 @@ The workflow deploys the following Azure resources:
 Ensure you have set the following secrets in your repository (**Settings > Actions > Secrets and variables**):
 - `AZURE_CREDENTIALS` - Service principal JSON for Azure authentication
 - `AZURE_SUBSCRIPTION_ID` - Your Azure subscription ID
-- `ADMIN_PASSWORD` - Password for Ubuntu VM administrator account
-- `WINDOWS_ADMIN_PASSWORD` - Password for Windows Server administrator account
+- `ADMIN_PASSWORD` - Password for VM administrator account (used for both Ubuntu and Windows VMs)
 
 For detailed instructions on setting up these secrets, see [`GITHUB_SECRETS_CHECKLIST.md`](GITHUB_SECRETS_CHECKLIST.md).
 
@@ -48,7 +47,7 @@ The deployment workflow performs the following steps:
 
 1. **Validation**: Validates both Bicep templates before deployment
 2. **Ubuntu Deployment**: Deploys Ubuntu server infrastructure
-3. **Windows Deployment**: Deploys Windows Server 2022 for Entra ID/MDI
+3. **Windows Deployment**: Deploys Windows Server 2022 with base configuration
 4. **Policy Deployment**: Applies Azure governance policies
 5. **Summary Output**: Provides deployment summary and next steps
 
@@ -73,7 +72,6 @@ jobs:
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-      WINDOWS_ADMIN_PASSWORD: ${{ secrets.WINDOWS_ADMIN_PASSWORD }}
       
     steps:
       - name: Checkout code
@@ -126,9 +124,7 @@ jobs:
 After successful deployment:
 
 1. **Ubuntu Server**: Ready for immediate use as Linux workstation
-2. **Windows Server**: Run the following PowerShell configuration scripts:
-   - `scripts/windows-server-entra-prereqs.ps1`
-   - `scripts/windows-server-mdi-prereqs.ps1`
+2. **Windows Server**: Connect via RDP for additional configuration as needed
 3. **Verify Resources**: Check Azure portal for all deployed resources
 4. **Cost Control**: Confirm auto-shutdown policies are applied
 
