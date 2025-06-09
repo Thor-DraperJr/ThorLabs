@@ -65,6 +65,7 @@ thorlabs-vm2-eastus
 - [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md) — Step-by-step deployment and management instructions
 - [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — Checklist and instructions for GitHub Actions secrets
 - [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — GitHub Actions workflow for automated deployment of both Ubuntu and Windows servers
+- [`.github/workflows/cleanup-lab.yml`](.github/workflows/cleanup-lab.yml) — GitHub Actions workflow for manual cleanup of the lab environment
 - [`.github/COPILOT_INSTRUCTIONS.md`](.github/COPILOT_INSTRUCTIONS.md) — Comprehensive guidelines for GitHub Copilot and contributors
 - [`infra/`](infra/) — Unified Bicep template and parameters for lab environment (both Ubuntu and Windows VMs)
 - [`bicep/`](bicep/) — Legacy Bicep templates (for reference)
@@ -82,6 +83,24 @@ The GitHub Actions workflow in [`.github/workflows/deploy.yml`](.github/workflow
 - **Azure Policy definitions** - For governance and cost control
 
 Both virtual machines are deployed in the same shared network infrastructure for simplified management and follow the established naming convention with auto-shutdown policies for cost control.
+
+---
+
+## Lab Environment Cleanup
+
+The GitHub Actions workflow in [`.github/workflows/cleanup-lab.yml`](.github/workflows/cleanup-lab.yml) provides a manual cleanup option to delete the entire lab environment. This workflow:
+
+- **Manual triggering only** - Requires explicit user action via the Actions UI
+- **Confirmation required** - Users must type "DELETE" to confirm the operation
+- **Complete cleanup** - Removes the `thorlabs-rg` resource group and all contained resources
+- **Handles edge cases** - Gracefully handles scenarios where the resource group doesn't exist
+
+To use the cleanup workflow:
+1. Go to the **Actions** tab in your repository
+2. Select "Cleanup Azure Lab Environment" workflow
+3. Click "Run workflow" button
+4. Type "DELETE" in the confirmation field
+5. Click "Run workflow" to execute
 
 ---
 

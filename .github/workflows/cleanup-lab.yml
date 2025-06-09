@@ -1,0 +1,86 @@
+name: Cleanup Azure Lab Environment
+
+on:
+  workflow_dispatch:  # Allow manual triggering only
+    inputs:
+      confirm_deletion:
+        description: 'Type "DELETE" to confirm resource group deletion'
+        required: true
+        default: ''
+        type: string
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    steps:
+      - name: Validate Confirmation Input
+        run: |
+          if [ "${{ github.event.inputs.confirm_deletion }}" != "DELETE" ]; then
+            echo "❌ Deletion not confirmed. You must type 'DELETE' to proceed."
+            echo "Current input: '${{ github.event.inputs.confirm_deletion }}'"
+            exit 1
+          fi
+          echo "✅ Deletion confirmed. Proceeding with resource group cleanup..."
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure Subscription
+        run: |
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+
+      - name: Delete Resource Group
+        run: |
+          echo "🧹 Starting cleanup of ThorLabs lab environment..."
+          echo "Target resource group: thorlabs-rg"
+
+          # Check if resource group exists
+          if az group show --name thorlabs-rg --output none 2>/dev/null; then
+            echo "Resource group 'thorlabs-rg' found. Initiating deletion..."
+
+            # Delete the resource group
+            az group delete --name thorlabs-rg --yes --no-wait || {
+              echo "❌ Failed to initiate resource group deletion"
+              exit 1
+            }
+
+            echo "🕐 Resource group deletion initiated. Waiting for completion..."
+
+            # Wait for deletion to complete with timeout
+            TIMEOUT=1800  # 30 minutes timeout
+            ELAPSED=0
+            while az group show --name thorlabs-rg --output none 2>/dev/null; do
+              if [ $ELAPSED -ge $TIMEOUT ]; then
+                echo "⚠️  Deletion timeout reached (30 minutes). Check Azure portal for status."
+                exit 1
+              fi
+              echo "Waiting for resource group deletion... (${ELAPSED}s elapsed)"
+              sleep 30
+              ELAPSED=$((ELAPSED + 30))
+            done
+
+            echo "✅ Resource group 'thorlabs-rg' has been successfully deleted"
+          else
+            echo "ℹ️  Resource group 'thorlabs-rg' does not exist or has already been deleted"
+          fi
+
+      - name: Cleanup Summary
+        run: |
+          echo "=== ThorLabs Lab Environment Cleanup Complete ==="
+          echo "✅ Resource group 'thorlabs-rg' and all contained resources have been removed"
+          echo ""
+          echo "Resources that were deleted (if they existed):"
+          echo "  - Ubuntu Server VM (thorlabs-vm1-eastus2)"
+          echo "  - Windows Server 2022 VM (thorlabs-vm2-eastus2)"
+          echo "  - Virtual Network (thorlabs-lab-vnet)"
+          echo "  - Network Security Group (thorlabs-lab-nsg)"
+          echo "  - Public IP addresses"
+          echo "  - Network interfaces"
+          echo "  - All associated storage and configurations"
+          echo ""
+          echo "💡 To redeploy the lab environment, use the 'Deploy Azure Lab Environment' workflow"
