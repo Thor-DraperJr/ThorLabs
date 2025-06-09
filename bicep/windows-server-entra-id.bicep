@@ -7,37 +7,50 @@ param adminUsername string
 @secure()
 param adminPassword string
 param vmSize string = 'Standard_D2s_v3' // Minimum recommended for domain services
+param vnetAddressPrefix string = '10.1.0.0/16'
+param subnetAddressPrefix string = '10.1.1.0/24'
+param domainControllerIP string = '10.1.1.10'
+param allowedSourceIPs array = ['0.0.0.0/0'] // Restrict to specific IPs in production
+@allowed([
+  'Premium_LRS'
+  'StandardSSD_LRS'
+  'Standard_LRS'
+])
+param osDiskType string = 'Premium_LRS'
+param osDiskSizeGB int = 128
 
-// Network Security Group for Windows Server
+// Network Security Group for Windows Server with restricted access
 resource nsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
   name: '${vmName}-nsg'
   location: location
   properties: {
     securityRules: [
       {
-        name: 'RDP'
+        name: 'RDP-Restricted'
         properties: {
           priority: 1000
           protocol: 'Tcp'
           access: 'Allow'
           direction: 'Inbound'
-          sourceAddressPrefix: '*'
+          sourceAddressPrefix: allowedSourceIPs[0] // TODO: Support multiple IPs
           sourcePortRange: '*'
           destinationAddressPrefix: '*'
           destinationPortRange: '3389'
+          description: 'Allow RDP access - restrict source IPs in production'
         }
       }
       {
-        name: 'WinRM'
+        name: 'WinRM-HTTP'
         properties: {
           priority: 1010
           protocol: 'Tcp'
           access: 'Allow'
           direction: 'Inbound'
-          sourceAddressPrefix: '*'
+          sourceAddressPrefix: '10.1.0.0/16' // Restrict to VNet only
           sourcePortRange: '*'
           destinationAddressPrefix: '*'
           destinationPortRange: '5985'
+          description: 'WinRM HTTP for PowerShell remoting within VNet'
         }
       }
       {
@@ -47,10 +60,81 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
           protocol: 'Tcp'
           access: 'Allow'
           direction: 'Inbound'
-          sourceAddressPrefix: '*'
+          sourceAddressPrefix: '10.1.0.0/16' // Restrict to VNet only
           sourcePortRange: '*'
           destinationAddressPrefix: '*'
           destinationPortRange: '5986'
+          description: 'WinRM HTTPS for secure PowerShell remoting within VNet'
+        }
+      }
+      {
+        name: 'LDAP'
+        properties: {
+          priority: 1030
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: '10.1.0.0/16'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '389'
+          description: 'LDAP for domain services'
+        }
+      }
+      {
+        name: 'LDAPS'
+        properties: {
+          priority: 1031
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: '10.1.0.0/16'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '636'
+          description: 'LDAPS for secure domain services'
+        }
+      }
+      {
+        name: 'DNS-TCP'
+        properties: {
+          priority: 1032
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: '10.1.0.0/16'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '53'
+          description: 'DNS TCP for domain services'
+        }
+      }
+      {
+        name: 'DNS-UDP'
+        properties: {
+          priority: 1033
+          protocol: 'Udp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: '10.1.0.0/16'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '53'
+          description: 'DNS UDP for domain services'
+        }
+      }
+      {
+        name: 'Kerberos'
+        properties: {
+          priority: 1034
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefix: '10.1.0.0/16'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '88'
+          description: 'Kerberos for domain authentication'
         }
       }
     ]
@@ -70,13 +154,13 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-04-01' = {
   location: location
   properties: {
     addressSpace: {
-      addressPrefixes: [ '10.1.0.0/16' ]
+      addressPrefixes: [ vnetAddressPrefix ]
     }
     subnets: [
       {
         name: 'domain-subnet'
         properties: {
-          addressPrefix: '10.1.1.0/24'
+          addressPrefix: subnetAddressPrefix
           networkSecurityGroup: {
             id: nsg.id
           }
@@ -125,7 +209,7 @@ resource nic 'Microsoft.Network/networkInterfaces@2023-04-01' = {
             id: vnet.properties.subnets[0].id
           }
           privateIPAllocationMethod: 'Static'
-          privateIPAddress: '10.1.1.10' // Static IP for domain controller
+          privateIPAddress: domainControllerIP // Static IP for domain controller
           publicIPAddress: {
             id: publicIP.id
           }
@@ -171,9 +255,9 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-03-01' = {
         name: '${vmName}-osdisk'
         createOption: 'FromImage'
         managedDisk: {
-          storageAccountType: 'Premium_LRS'
+          storageAccountType: osDiskType
         }
-        diskSizeGB: 128
+        diskSizeGB: osDiskSizeGB
       }
     }
     networkProfile: {
