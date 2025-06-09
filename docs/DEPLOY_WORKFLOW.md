@@ -17,7 +17,7 @@ The workflow deploys the following Azure resources using a single unified templa
    - **Network interfaces** - Connected to shared subnet
 
 2. **Azure Policy Definitions**
-   - VM auto-shutdown enforcement  
+   - VM auto-shutdown enforcement (automatically sets required tags for 7pm ET shutdown)
    - Governance and compliance rules
 
 ---
@@ -118,7 +118,7 @@ After successful deployment:
 1. **Ubuntu Server**: Ready for immediate use as Linux workstation
 2. **Windows Server**: Connect via RDP for additional configuration as needed
 3. **Verify Resources**: Check Azure portal for all deployed resources
-4. **Cost Control**: Confirm auto-shutdown policies are applied
+4. **Cost Control**: Confirm auto-shutdown policies are enforced and tags automatically applied to VMs
 
 ---
 

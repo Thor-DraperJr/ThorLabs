@@ -113,7 +113,7 @@ This repository includes Azure Policy definitions in the `policies/` folder to e
 - **GitHub Actions** - Automated deployment via CI/CD pipeline
 
 **Key Benefits:**
-- Audit VM auto-shutdown tags for cost control
+- Enforce VM auto-shutdown tags for cost control (automatically sets required tags)
 - Ensure consistent governance across resources
 - Automated compliance monitoring
 

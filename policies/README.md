@@ -4,7 +4,7 @@ This directory contains Azure Policy definitions for governance and compliance i
 
 ## Available Policies
 
-### VM Auto-Shutdown Enforcement (`enforce-vm-autoshutdown-7pm-et.json`)
+### VM Auto-Shutdown Audit (`enforce-vm-autoshutdown-7pm-et.json`)
 
 **Purpose:** Audits virtual machines to ensure they have the required auto-shutdown tags for cost control.
 
@@ -15,9 +15,23 @@ This directory contains Azure Policy definitions for governance and compliance i
 
 **Effect:** `Audit` - This policy only reports compliance status; it does not prevent VM creation or modify existing VMs.
 
+### VM Auto-Shutdown Enforcement (`vm-autoshutdown-deployIfNotExists.json`)
+
+**Purpose:** Automatically enforces that all newly created VMs have the required auto-shutdown tags for cost control.
+
+**What it does:**
+- Automatically sets `AutoShutdown_Time` tag to `19:00` (7 PM) if missing or incorrect
+- Automatically sets `AutoShutdown_TimeZone` tag to `Eastern Standard Time` if missing or incorrect
+- Preserves existing tags while adding/updating the auto-shutdown tags
+- Triggers when VMs are created without proper auto-shutdown configuration
+
+**Effect:** `DeployIfNotExists` - This policy actively modifies VMs by deploying the required tags if they are missing or incorrect.
+
 ## How to Deploy a Policy
 
 ### Using Azure CLI
+
+#### For Audit Policy (enforce-vm-autoshutdown-7pm-et.json)
 
 1. **Create the policy definition:**
    ```bash
@@ -36,6 +50,30 @@ This directory contains Azure Policy definitions for governance and compliance i
      --display-name "Audit VM Auto-Shutdown Tags" \
      --policy "audit-vm-autoshutdown-7pm-et" \
      --scope "/subscriptions/YOUR_SUBSCRIPTION_ID"
+   ```
+
+#### For DeployIfNotExists Policy (vm-autoshutdown-deployIfNotExists.json)
+
+1. **Create the policy definition:**
+   ```bash
+   az policy definition create \
+     --name "deploy-vm-autoshutdown-7pm-et" \
+     --display-name "Deploy VM Auto-Shutdown Tags (7 PM ET)" \
+     --description "Automatically deploys required auto-shutdown tags to VMs" \
+     --rules policies/vm-autoshutdown-deployIfNotExists.json \
+     --mode Indexed
+   ```
+
+2. **Assign the policy to a subscription (requires managed identity):**
+   ```bash
+   az policy assignment create \
+     --name "deploy-vm-autoshutdown-assignment" \
+     --display-name "Deploy VM Auto-Shutdown Tags" \
+     --policy "deploy-vm-autoshutdown-7pm-et" \
+     --scope "/subscriptions/YOUR_SUBSCRIPTION_ID" \
+     --assign-identity \
+     --identity-scope "/subscriptions/YOUR_SUBSCRIPTION_ID" \
+     --role "Contributor"
    ```
 
 3. **Assign the policy to a resource group (alternative):**
@@ -106,11 +144,24 @@ The policy can be deployed automatically via the GitHub Actions workflow. The wo
 
 ## Important Notes and Limitations
 
-### What This Policy Does NOT Do
+### Audit Policy (enforce-vm-autoshutdown-7pm-et.json)
 
+**What this policy does NOT do:**
 - **Does not automatically shut down VMs** - This policy only audits for the presence of tags
 - **Does not create or modify tags** - VMs must be tagged manually or through automation
 - **Does not prevent VM creation** - VMs can still be created without the required tags (they'll just be flagged as non-compliant)
+
+### DeployIfNotExists Policy (vm-autoshutdown-deployIfNotExists.json)
+
+**What this policy DOES do:**
+- **Automatically creates/updates required tags** - Sets AutoShutdown_Time and AutoShutdown_TimeZone tags on VMs that are missing them or have incorrect values
+- **Preserves existing tags** - Only adds/updates the auto-shutdown tags while keeping other VM tags intact
+- **Enforces compliance** - VMs will automatically receive the required tags for cost control
+
+**Important considerations for DeployIfNotExists:**
+- **Requires managed identity** - The policy assignment must have a managed identity with appropriate permissions
+- **Contributor role needed** - The managed identity needs Contributor role to modify VM tags
+- **Does not automatically shut down VMs** - This policy only ensures tags are present; actual shutdown automation requires additional tools
 
 ### Enforcement of Auto-Shutdown
 
