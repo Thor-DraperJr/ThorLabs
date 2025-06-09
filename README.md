@@ -4,7 +4,7 @@
 
 Deploy the ThorLabs lab environment to your Azure subscription with one click:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FThor-DraperJr%2FThorLabs%2Fmain%2Finfra%2Fmain.bicep)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FThor-DraperJr%2FThorLabs%2Fmain%2Finfra%2Flab.bicep)
 
 **After clicking the button:**
 1. You'll be redirected to the Azure portal
@@ -15,7 +15,7 @@ Deploy the ThorLabs lab environment to your Azure subscription with one click:
    - `adminPassword`: Secure password for the VM (will be prompted securely)
 5. Review and create the deployment
 
-**Note:** The template will deploy a Ubuntu VM with associated networking resources. For detailed manual deployment steps, parameter customization, and cost control options, see [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md).
+**Note:** The template will deploy both Ubuntu and Windows Server VMs with shared networking resources in a single deployment. For detailed manual deployment steps, parameter customization, and cost control options, see [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md).
 
 ---
 
@@ -66,8 +66,8 @@ thorlabs-vm2-eastus
 - [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — Checklist and instructions for GitHub Actions secrets
 - [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — GitHub Actions workflow for automated deployment of both Ubuntu and Windows servers
 - [`.github/COPILOT_INSTRUCTIONS.md`](.github/COPILOT_INSTRUCTIONS.md) — Comprehensive guidelines for GitHub Copilot and contributors
-- [`infra/`](infra/) — Main Bicep templates and parameter files (Ubuntu server)
-- [`bicep/`](bicep/) — Additional Bicep templates (Windows Server 2022 base configuration)
+- [`infra/`](infra/) — Unified Bicep template and parameters for lab environment (both Ubuntu and Windows VMs)
+- [`bicep/`](bicep/) — Legacy Bicep templates (for reference)
 - [`scripts/`](scripts/) — PowerShell scripts for server configuration
 - [`policies/`](policies/) — Azure Policy definitions for governance and compliance
 - [`history.md`](history.md) — Log of manual actions and commands
@@ -76,12 +76,12 @@ thorlabs-vm2-eastus
 
 The GitHub Actions workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) automatically deploys the complete lab environment on every push to the `main` branch, including:
 
-- **Ubuntu Server VM** (`thorlabs-vm1-eastus2`) - General purpose Linux workstation
-- **Windows Server 2022 VM** (`thorlabs-vm2-eastus2`) - Basic Windows Server configuration with RDP access
+- **Ubuntu Server VM** (`thorlabs-vm1-eastus2`) - General purpose Linux workstation  
+- **Windows Server 2022 VM** (`thorlabs-vm2-eastus2`) - Windows Server configuration with RDP access
+- **Shared networking** - Single VNet (10.10.0.0/16), subnet (10.10.0.0/24), and NSG with SSH/RDP rules
 - **Azure Policy definitions** - For governance and cost control
-- **Network infrastructure** - Virtual networks, security groups, and public IPs
 
-Both virtual machines follow the established naming convention and include auto-shutdown policies for cost management.
+Both virtual machines are deployed in the same shared network infrastructure for simplified management and follow the established naming convention with auto-shutdown policies for cost control.
 
 ---
 

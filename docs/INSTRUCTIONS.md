@@ -34,12 +34,12 @@ az account set --subscription <your-subscription-id>
 az group create --name thorlabs-rg --location eastus2
 ```
 
-### 4. Deploy a Bicep Template
+### 4. Deploy the Lab Environment
 ```bash
 az deployment group create \
   --resource-group thorlabs-rg \
-  --template-file ./infra/main.bicep \
-  --parameters @./infra/main.parameters.json
+  --template-file ./infra/lab.bicep \
+  --parameters @./infra/lab.parameters.json
 ```
 
 - You can override sensitive parameters (like adminPassword) at deploy time:
@@ -47,9 +47,9 @@ az deployment group create \
   export ADMIN_PASSWORD='yourStrongPasswordHere'
   az deployment group create \
     --resource-group thorlabs-rg \
-    --template-file ./infra/main.bicep \
+    --template-file ./infra/lab.bicep \
     --parameters adminPassword=$ADMIN_PASSWORD \
-    --parameters @./infra/main.parameters.json
+    --parameters @./infra/lab.parameters.json
   ```
 
 ---

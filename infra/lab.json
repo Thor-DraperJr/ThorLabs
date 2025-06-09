@@ -1,0 +1,328 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.35.1.17967",
+      "templateHash": "7209092416017645243"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "adminUsername": {
+      "type": "string"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-04-01",
+      "name": "thorlabs-lab-nsg",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "SSH-Access",
+            "properties": {
+              "priority": 1000,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "22",
+              "description": "Allow SSH access for Ubuntu VM"
+            }
+          },
+          {
+            "name": "RDP-Access",
+            "properties": {
+              "priority": 1001,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "3389",
+              "description": "Allow RDP access for Windows VM"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Environment": "Lab",
+        "Project": "ThorLabs",
+        "AutoShutdown_Time": "19:00",
+        "AutoShutdown_TimeZone": "Eastern Standard Time"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-04-01",
+      "name": "thorlabs-lab-vnet",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.10.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "default",
+            "properties": {
+              "addressPrefix": "10.10.0.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'thorlabs-lab-nsg')]"
+              }
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Environment": "Lab",
+        "Project": "ThorLabs",
+        "AutoShutdown_Time": "19:00",
+        "AutoShutdown_TimeZone": "Eastern Standard Time"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', 'thorlabs-lab-nsg')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-04-01",
+      "name": "thorlabs-vm1-eastus2-pip",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      },
+      "tags": {
+        "Environment": "Lab",
+        "Project": "ThorLabs",
+        "AutoShutdown_Time": "19:00",
+        "AutoShutdown_TimeZone": "Eastern Standard Time"
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-04-01",
+      "name": "thorlabs-vm2-eastus2-pip",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      },
+      "tags": {
+        "Environment": "Lab",
+        "Project": "ThorLabs",
+        "AutoShutdown_Time": "19:00",
+        "AutoShutdown_TimeZone": "Eastern Standard Time"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-04-01",
+      "name": "thorlabs-vm1-eastus2-nic",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "subnet": {
+                "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet'), '2023-04-01').subnets[0].id]"
+              },
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm1-eastus2-pip')]"
+              }
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Environment": "Lab",
+        "Project": "ThorLabs",
+        "AutoShutdown_Time": "19:00",
+        "AutoShutdown_TimeZone": "Eastern Standard Time"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm1-eastus2-pip')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-04-01",
+      "name": "thorlabs-vm2-eastus2-nic",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "subnet": {
+                "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet'), '2023-04-01').subnets[0].id]"
+              },
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm2-eastus2-pip')]"
+              }
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Environment": "Lab",
+        "Project": "ThorLabs",
+        "AutoShutdown_Time": "19:00",
+        "AutoShutdown_TimeZone": "Eastern Standard Time"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet')]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm2-eastus2-pip')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-03-01",
+      "name": "thorlabs-vm1-eastus2",
+      "location": "[parameters('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_B1s"
+        },
+        "osProfile": {
+          "computerName": "thorlabs-vm1-eastus2",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": false
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Canonical",
+            "offer": "0001-com-ubuntu-server-focal",
+            "sku": "20_04-lts-gen2",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', 'thorlabs-vm1-eastus2-nic')]"
+            }
+          ]
+        }
+      },
+      "tags": {
+        "Environment": "Lab",
+        "Project": "ThorLabs",
+        "AutoShutdown_Time": "19:00",
+        "AutoShutdown_TimeZone": "Eastern Standard Time"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', 'thorlabs-vm1-eastus2-nic')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-03-01",
+      "name": "thorlabs-vm2-eastus2",
+      "location": "[parameters('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_B2s"
+        },
+        "osProfile": {
+          "computerName": "THORLABS-WIN",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "enableAutomaticUpdates": true,
+            "provisionVMAgent": true,
+            "timeZone": "Eastern Standard Time"
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "2022-datacenter-g2",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "thorlabs-vm2-eastus2-osdisk",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', 'thorlabs-vm2-eastus2-nic')]"
+            }
+          ]
+        }
+      },
+      "tags": {
+        "Environment": "Lab",
+        "Project": "ThorLabs",
+        "AutoShutdown_Time": "19:00",
+        "AutoShutdown_TimeZone": "Eastern Standard Time"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', 'thorlabs-vm2-eastus2-nic')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "ubuntuVMName": {
+      "type": "string",
+      "value": "thorlabs-vm1-eastus2"
+    },
+    "windowsVMName": {
+      "type": "string",
+      "value": "thorlabs-vm2-eastus2"
+    },
+    "ubuntuPublicIPAddress": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm1-eastus2-pip'), '2023-04-01').ipAddress]"
+    },
+    "windowsPublicIPAddress": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm2-eastus2-pip'), '2023-04-01').ipAddress]"
+    },
+    "adminUsername": {
+      "type": "string",
+      "value": "[parameters('adminUsername')]"
+    },
+    "vnetName": {
+      "type": "string",
+      "value": "thorlabs-lab-vnet"
+    },
+    "subnetName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet'), '2023-04-01').subnets[0].name]"
+    },
+    "nsgName": {
+      "type": "string",
+      "value": "thorlabs-lab-nsg"
+    }
+  }
+}

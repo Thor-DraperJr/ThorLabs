@@ -26,42 +26,24 @@ jobs:
         run: |
           az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 
-      - name: Validate Bicep Templates
+      - name: Validate Bicep Template
         run: |
-          echo "Validating Ubuntu server template..."
+          echo "Validating unified lab template..."
           az deployment group validate \
             --resource-group thorlabs-rg \
-            --template-file infra/main.bicep \
+            --template-file infra/lab.bicep \
             --parameters adminPassword="$ADMIN_PASSWORD" \
-            --parameters @infra/main.parameters.json
-          
-          echo "Validating Windows server template..."
-          az deployment group validate \
-            --resource-group thorlabs-rg \
-            --template-file bicep/windows-server-base.bicep \
-            --parameters adminPassword="$ADMIN_PASSWORD" \
-            --parameters @bicep/windows-server-base.parameters.json
+            --parameters @infra/lab.parameters.json
 
-      - name: Deploy Ubuntu Server (VM1)
+      - name: Deploy Lab Environment
         run: |
-          echo "Deploying Ubuntu server infrastructure..."
+          echo "Deploying unified lab environment (Ubuntu + Windows VMs)..."
           az deployment group create \
-            --name "thorlabs-ubuntu-deployment-$(date +%Y%m%d-%H%M%S)" \
+            --name "thorlabs-lab-deployment-$(date +%Y%m%d-%H%M%S)" \
             --resource-group thorlabs-rg \
-            --template-file infra/main.bicep \
+            --template-file infra/lab.bicep \
             --parameters adminPassword="$ADMIN_PASSWORD" \
-            --parameters @infra/main.parameters.json \
-            --verbose
-
-      - name: Deploy Windows Server (VM2)
-        run: |
-          echo "Deploying Windows Server 2022 base configuration..."
-          az deployment group create \
-            --name "thorlabs-windows-deployment-$(date +%Y%m%d-%H%M%S)" \
-            --resource-group thorlabs-rg \
-            --template-file bicep/windows-server-base.bicep \
-            --parameters adminPassword="$ADMIN_PASSWORD" \
-            --parameters @bicep/windows-server-base.parameters.json \
+            --parameters @infra/lab.parameters.json \
             --verbose
 
       - name: Deploy Azure Policies
@@ -81,12 +63,14 @@ jobs:
         run: |
           echo "=== ThorLabs Lab Environment Deployment Complete ==="
           echo "Resources deployed:"
-          echo "  - Ubuntu Server VM (thorlabs-vm1-eastus2)"
-          echo "  - Windows Server 2022 VM (thorlabs-vm2-eastus2) with basic configuration"
+          echo "  - Ubuntu Server VM (thorlabs-vm1-eastus2) in shared network"
+          echo "  - Windows Server 2022 VM (thorlabs-vm2-eastus2) in shared network"
+          echo "  - Shared VNet (10.10.0.0/16) with subnet (10.10.0.0/24)"
+          echo "  - Shared NSG with SSH (22) and RDP (3389) access rules"
           echo "  - Azure Policy definitions for governance"
           echo ""
           echo "Next steps:"
-          echo "  1. Configure Ubuntu server for your lab workloads"
+          echo "  1. Connect to Ubuntu server via SSH for lab workloads"
           echo "  2. Connect to Windows server via RDP for additional configuration"
           echo "  3. Review deployed resources in Azure portal"
           echo "  4. Verify auto-shutdown policies are applied for cost control"

@@ -6,27 +6,19 @@ This workflow automatically deploys the complete ThorLabs lab environment includ
 
 ## Resources Deployed
 
-The workflow deploys the following Azure resources:
+The workflow deploys the following Azure resources using a single unified template:
 
-1. **Ubuntu Server VM** (`thorlabs-vm1-eastus2`)
-   - General purpose Linux workstation
-   - Template: `infra/main.bicep`
-   - Network: `10.0.0.0/16` address space
+1. **Lab Environment** (`infra/lab.bicep`)
+   - **Ubuntu Server VM** (`thorlabs-vm1-eastus2`) - General purpose Linux workstation
+   - **Windows Server 2022 VM** (`thorlabs-vm2-eastus2`) - Windows Server configuration with RDP access
+   - **Shared VNet** (`thorlabs-lab-vnet`) - Single network (10.10.0.0/16) with subnet (10.10.0.0/24)
+   - **Shared NSG** (`thorlabs-lab-nsg`) - Security group with SSH (22) and RDP (3389) rules
+   - **Public IP addresses** - Dynamic IPs for both VMs
+   - **Network interfaces** - Connected to shared subnet
 
-2. **Windows Server 2022 VM** (`thorlabs-vm2-eastus2`)
-   - Basic Windows Server configuration with RDP access
-   - Template: `bicep/windows-server-base.bicep`
-   - Network: `10.2.0.0/16` address space
-
-3. **Azure Policy Definitions**
-   - VM auto-shutdown enforcement
+2. **Azure Policy Definitions**
+   - VM auto-shutdown enforcement  
    - Governance and compliance rules
-
-4. **Supporting Infrastructure**
-   - Virtual networks and subnets
-   - Network security groups
-   - Public IP addresses
-   - Storage accounts and disks
 
 ---
 
