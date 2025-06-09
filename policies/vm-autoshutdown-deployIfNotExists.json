@@ -34,6 +34,18 @@
       "details": {
         "type": "Microsoft.Resources/tags",
         "name": "default",
+        "existenceCondition": {
+          "allOf": [
+            {
+              "field": "tags['AutoShutdown_Time']",
+              "equals": "[parameters('requiredShutdownTime')]"
+            },
+            {
+              "field": "tags['AutoShutdown_TimeZone']",
+              "equals": "[parameters('requiredTimeZone')]"
+            }
+          ]
+        },
         "roleDefinitionIds": [
           "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
         ],
@@ -44,7 +56,7 @@
               "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
               "contentVersion": "1.0.0.0",
               "parameters": {
-                "resourceName": {
+                "vmResourceId": {
                   "type": "string"
                 },
                 "requiredShutdownTime": {
@@ -65,7 +77,7 @@
                   "type": "Microsoft.Resources/tags",
                   "apiVersion": "2021-04-01",
                   "name": "default",
-                  "scope": "[concat('Microsoft.Compute/virtualMachines/', parameters('resourceName'))]",
+                  "scope": "[parameters('vmResourceId')]",
                   "properties": {
                     "tags": "[variables('updatedTags')]"
                   }
@@ -73,8 +85,8 @@
               ]
             },
             "parameters": {
-              "resourceName": {
-                "value": "[field('name')]"
+              "vmResourceId": {
+                "value": "[field('id')]"
               },
               "requiredShutdownTime": {
                 "value": "[parameters('requiredShutdownTime')]"
