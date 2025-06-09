@@ -46,6 +46,7 @@ thorlabs-vm2-eastus
 - [`README.md`](README.md) — High-level overview and quick reference
 - [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md) — Step-by-step deployment and management instructions
 - [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — Checklist and instructions for GitHub Actions secrets
+- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — GitHub Actions workflow for automated Azure deployment
 - [`infra/`](infra/) — Bicep templates and parameter files
 - [`history.md`](history.md) — Log of manual actions and commands
 
