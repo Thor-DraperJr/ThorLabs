@@ -54,6 +54,23 @@ thorlabs-vm2-eastus
 
 ---
 
+## Deploying Azure Policies
+
+This repository includes Azure Policy definitions in the `policies/` folder to enforce governance and compliance. Policies can be deployed using:
+
+- **Bicep templates** (recommended) - Infrastructure as Code approach with version control
+- **Azure CLI** - Manual deployment using JSON definitions
+- **GitHub Actions** - Automated deployment via CI/CD pipeline
+
+**Key Benefits:**
+- Audit VM auto-shutdown tags for cost control
+- Ensure consistent governance across resources
+- Automated compliance monitoring
+
+For detailed policy deployment instructions, examples, and troubleshooting, see [`policies/README.md`](policies/README.md).
+
+---
+
 ## Security & Best Practices
 
 - **Never commit real secrets, passwords, or subscription IDs to the repo.** Use placeholders and store sensitive values as GitHub Actions secrets. For a detailed checklist, see [GitHub Secrets Checklist](docs/GITHUB_SECRETS_CHECKLIST.md).
