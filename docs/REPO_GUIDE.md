@@ -16,29 +16,49 @@ This repo is designed to help you automate, document, and control your Azure res
 
 ## Repository Structure
 
-- `README.md` — High-level overview, project goals, and quick reference to the most important tasks and files.
-- `docs/` — Contains detailed instructions, deployment guides, and checklists for secrets and variables.
-- `infra/` — All Bicep templates and parameter files for Azure resource deployments.
+- `README.md` — High-level overview, project goals, naming conventions, and quick reference
+- `docs/` — Contains detailed instructions, deployment guides, and checklists for secrets and variables
+- `infra/` — Main Bicep templates and parameter files for Ubuntu server deployment
+- `bicep/` — Additional Bicep templates for Windows Server 2022 Entra ID Connect and MDI
+- `scripts/` — PowerShell scripts for server configuration and management
+- `policies/` — Azure Policy definitions for governance and compliance
+- `.github/` — GitHub Actions workflows and contributor guidelines
 
 ---
 
 ## Key Files
 
-- `README.md`: Start here for a summary of the project, naming conventions, and links to detailed docs.
-- `docs/INSTRUCTIONS.md`: Step-by-step deployment and management instructions (moved from README for clarity).
-- `docs/GITHUB_SECRETS_CHECKLIST.md`: Checklist and instructions for managing GitHub Actions secrets and variables.
-- `infra/main.bicep`: Main Bicep template for deploying resources (e.g., Ubuntu VM).
-- `infra/main.parameters.json`: Parameters for customizing deployments.
+- `README.md`: Start here for project overview, naming conventions, and automated deployment information
+- `docs/INSTRUCTIONS.md`: Step-by-step deployment and management instructions
+- `docs/GITHUB_SECRETS_CHECKLIST.md`: Checklist and instructions for managing GitHub Actions secrets
+- `docs/DEPLOY_WORKFLOW.md`: Detailed documentation of the automated deployment workflow
+- `.github/COPILOT_INSTRUCTIONS.md`: Comprehensive guidelines for GitHub Copilot and contributors
+- `.github/workflows/deploy.yml`: Automated deployment workflow for both Ubuntu and Windows servers
+- `infra/main.bicep`: Main Bicep template for Ubuntu server deployment
+- `bicep/windows-server-entra-id.bicep`: Bicep template for Windows Server 2022 deployment
+- `scripts/windows-server-*.ps1`: PowerShell scripts for Windows server configuration
 
 ---
 
 ## How to Use This Repo
 
-1. **Read the `README.md`** for a project overview and to understand the repo layout.
-2. **Follow `docs/INSTRUCTIONS.md`** for step-by-step deployment and management tasks.
-3. **Set up your GitHub Actions secrets** as described in `docs/GITHUB_SECRETS_CHECKLIST.md`.
-4. **Customize and deploy** your lab environment using the Bicep templates in `infra/`.
-5. **Document all manual commands** in a `history.md` file for traceability.
+### Automated Deployment (Recommended)
+1. **Set up GitHub Actions secrets** as described in `docs/GITHUB_SECRETS_CHECKLIST.md`
+2. **Push to main branch** - The complete lab environment (Ubuntu + Windows servers) deploys automatically
+3. **Monitor deployment** in the GitHub Actions tab
+4. **Configure servers** using the PowerShell scripts in `scripts/` folder after deployment
+
+### Manual Deployment
+1. **Read the `README.md`** for a project overview and to understand the repo layout
+2. **Follow `docs/INSTRUCTIONS.md`** for step-by-step deployment and management tasks
+3. **Customize templates** using the Bicep files in `infra/` and `bicep/` folders
+4. **Document all manual commands** in `history.md` file for traceability
+
+### Contributing
+1. **Review contributor guidelines** in `.github/COPILOT_INSTRUCTIONS.md`
+2. **Follow naming conventions** (`thorlabs-{service}{number}-{region}`)
+3. **Use Microsoft/Azure native tools** (Bicep, PowerShell, Azure CLI)
+4. **Update documentation** for all significant changes
 
 ---
 
