@@ -56,6 +56,54 @@ This directory contains Azure Policy definitions for governance and compliance i
 5. Save the definition
 6. Go to **Assignments** and create a new assignment using your policy definition
 
+### Using Bicep (Recommended)
+
+The Bicep template `enforce-vm-autoshutdown-7pm-et.bicep` defines and assigns the policy at subscription scope in a single deployment:
+
+1. **Deploy using Azure CLI:**
+   ```bash
+   az deployment sub create \
+     --location eastus2 \
+     --template-file policies/enforce-vm-autoshutdown-7pm-et.bicep \
+     --parameters requiredShutdownTime="19:00" \
+     --parameters requiredTimeZone="Eastern Standard Time"
+   ```
+
+2. **Deploy with custom parameters:**
+   ```bash
+   az deployment sub create \
+     --location eastus2 \
+     --template-file policies/enforce-vm-autoshutdown-7pm-et.bicep \
+     --parameters requiredShutdownTime="18:00" \
+     --parameters requiredTimeZone="Pacific Standard Time" \
+     --parameters assignmentName="audit-vm-autoshutdown-west"
+   ```
+
+3. **Deploy via GitHub Actions:**
+   The policy will be automatically deployed when using the workflow in `.github/workflows/deploy.yml` (see GitHub Actions section below).
+
+### Using GitHub Actions
+
+The policy can be deployed automatically via the GitHub Actions workflow. The workflow is configured to deploy all `*.bicep` files in the `policies/` directory at subscription scope.
+
+**Prerequisites:**
+- Ensure your GitHub Actions secrets include `AZURE_CREDENTIALS` with subscription-level permissions
+- The workflow requires `AZURE_SUBSCRIPTION_ID` to be set as a secret
+
+**Example workflow step:**
+```yaml
+- name: Deploy Policies
+  run: |
+    for policy in policies/*.bicep; do
+      if [ -f "$policy" ]; then
+        echo "Deploying policy: $policy"
+        az deployment sub create \
+          --location eastus2 \
+          --template-file "$policy"
+      fi
+    done
+```
+
 ## Important Notes and Limitations
 
 ### What This Policy Does NOT Do

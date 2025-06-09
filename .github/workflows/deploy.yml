@@ -34,3 +34,15 @@ jobs:
             --parameters adminPassword="$ADMIN_PASSWORD" \
             --parameters @infra/main.parameters.json \
             --verbose
+
+      - name: Deploy Policies
+        run: |
+          for policy in policies/*.bicep; do
+            if [ -f "$policy" ]; then
+              echo "Deploying policy: $policy"
+              az deployment sub create \
+                --location eastus2 \
+                --template-file "$policy" \
+                --verbose
+            fi
+          done
