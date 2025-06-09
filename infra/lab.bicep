@@ -5,6 +5,8 @@ param location string = resourceGroup().location
 param adminUsername string
 @secure()
 param adminPassword string
+param ubuntuVmSize string = 'Standard_DS1_v2'
+param windowsVmSize string = 'Standard_DS1_v2'
 
 // Shared Network Security Group with rules for both SSH and RDP
 resource nsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
@@ -170,7 +172,7 @@ resource ubuntuVM 'Microsoft.Compute/virtualMachines@2023-03-01' = {
   location: location
   properties: {
     hardwareProfile: {
-      vmSize: 'Standard_B1s'
+      vmSize: ubuntuVmSize
     }
     osProfile: {
       computerName: 'thorlabs-vm1-eastus2'
@@ -213,7 +215,7 @@ resource windowsVM 'Microsoft.Compute/virtualMachines@2023-03-01' = {
   location: location
   properties: {
     hardwareProfile: {
-      vmSize: 'Standard_B2s'
+      vmSize: windowsVmSize
     }
     osProfile: {
       computerName: 'THORLABS-WIN'

@@ -5,6 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:  # Allow manual triggering
+    inputs:
+      delete_before_deploy:
+        description: 'Delete resource group before deployment (for clean redeployment)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   deploy:
@@ -26,6 +35,23 @@ jobs:
         run: |
           az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 
+      - name: Delete Resource Group (if requested)
+        if: ${{ github.event.inputs.delete_before_deploy == 'true' }}
+        run: |
+          echo "Deleting resource group thorlabs-rg for clean redeployment..."
+          az group delete --name thorlabs-rg --yes --no-wait || echo "Resource group does not exist or already deleted"
+          echo "Waiting for resource group deletion to complete..."
+          while az group show --name thorlabs-rg --output none 2>/dev/null; do
+            echo "Waiting for resource group deletion..."
+            sleep 30
+          done
+          echo "Resource group deletion completed"
+
+      - name: Create Resource Group
+        run: |
+          echo "Ensuring resource group thorlabs-rg exists..."
+          az group create --name thorlabs-rg --location eastus2
+
       - name: Validate Bicep Template
         run: |
           echo "Validating unified lab template..."
@@ -33,18 +59,46 @@ jobs:
             --resource-group thorlabs-rg \
             --template-file infra/lab.bicep \
             --parameters adminPassword="$ADMIN_PASSWORD" \
-            --parameters @infra/lab.parameters.json
+            --parameters @infra/lab.parameters.json \
+            --debug
 
       - name: Deploy Lab Environment
         run: |
           echo "Deploying unified lab environment (Ubuntu + Windows VMs)..."
+          DEPLOYMENT_NAME="thorlabs-lab-deployment-$(date +%Y%m%d-%H%M%S)"
+          echo "Deployment name: $DEPLOYMENT_NAME"
+          
+          # Create deployment log file
+          DEPLOYMENT_LOG="/tmp/deployment-${DEPLOYMENT_NAME}.log"
+          
+          # Run deployment with debug output and capture logs
+          set +e  # Don't exit on error so we can capture logs
           az deployment group create \
-            --name "thorlabs-lab-deployment-$(date +%Y%m%d-%H%M%S)" \
+            --name "$DEPLOYMENT_NAME" \
             --resource-group thorlabs-rg \
             --template-file infra/lab.bicep \
             --parameters adminPassword="$ADMIN_PASSWORD" \
             --parameters @infra/lab.parameters.json \
-            --verbose
+            --verbose \
+            --debug > "$DEPLOYMENT_LOG" 2>&1
+          
+          DEPLOYMENT_RESULT=$?
+          set -e  # Re-enable exit on error
+          
+          echo "=== DEPLOYMENT LOG SUMMARY ==="
+          if [ $DEPLOYMENT_RESULT -eq 0 ]; then
+            echo "✅ Deployment completed successfully"
+            echo "Last 20 lines of deployment log:"
+            tail -20 "$DEPLOYMENT_LOG"
+          else
+            echo "❌ Deployment failed with exit code: $DEPLOYMENT_RESULT"
+            echo "=== ERROR DETAILS ==="
+            echo "Last 50 lines of deployment log:"
+            tail -50 "$DEPLOYMENT_LOG"
+            echo "=== FULL DEPLOYMENT LOG ==="
+            cat "$DEPLOYMENT_LOG"
+            exit $DEPLOYMENT_RESULT
+          fi
 
       - name: Deploy Azure Policies
         run: |
@@ -55,7 +109,8 @@ jobs:
               az deployment sub create \
                 --location eastus2 \
                 --template-file "$policy" \
-                --verbose
+                --verbose \
+                --debug
             fi
           done
 
