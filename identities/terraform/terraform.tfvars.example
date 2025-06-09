@@ -1,0 +1,29 @@
+# terraform.tfvars.example
+# Example values for Terraform variables
+# Copy this file to terraform.tfvars and customize the values for your environment
+
+# User configuration
+username     = "john.doe"
+display_name = "John Doe"
+mail_nickname = "john.doe"
+
+# User attributes
+department         = "IT Lab"
+job_title         = "Lab Administrator"
+office_location   = "Building A, Floor 2"
+usage_location    = "US"
+
+# Contact information (optional)
+business_phones = ["+1-555-123-4567"]
+mobile_phone    = "+1-555-987-6543"
+
+# Account settings
+account_enabled       = true
+force_password_change = true
+
+# Group management
+create_lab_group = true
+lab_group_name   = "ThorLabs-Users"
+
+# Export settings
+export_user_info = true

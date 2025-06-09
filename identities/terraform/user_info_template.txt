@@ -1,0 +1,23 @@
+Azure AD User Created Successfully
+================================
+
+User Details:
+- User Principal Name: ${user_principal_name}
+- Display Name: ${display_name}
+- Object ID: ${object_id}
+- Department: ${department}
+- Job Title: ${job_title}
+- Domain: ${domain_name}
+- Created: ${created_date}
+
+Important Notes:
+- The user will be required to change their password on first login
+- Save the password securely from the Terraform output
+- The user account is now active and can be used to sign in to Azure services
+- Group memberships (if configured) have been applied
+
+Next Steps:
+1. Provide the user with their login credentials
+2. Assign appropriate licenses if needed
+3. Configure additional permissions or group memberships as required
+4. Test the account by having the user sign in and change their password

@@ -48,6 +48,7 @@ thorlabs-vm2-eastus
 - [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — Checklist and instructions for GitHub Actions secrets
 - [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — GitHub Actions workflow for automated Azure deployment
 - [`infra/`](infra/) — Bicep templates and parameter files
+- [`identities/`](identities/) — PowerShell and Terraform tools for Azure Entra (Azure AD) user management
 - [`history.md`](history.md) — Log of manual actions and commands
 
 ---
