@@ -2,20 +2,14 @@
 
 ## Quick Start
 
-Deploy the ThorLabs lab environment to your Azure subscription with one click:
+Deploy the ThorLabs lab environment manually using the step-by-step instructions in [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md), or use the automated GitHub Actions workflow by pushing to the main branch.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FThor-DraperJr%2FThorLabs%2Fmain%2Finfra%2Flab.bicep)
+**For automated deployment:**
+1. Set up GitHub Actions secrets as described in [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md)
+2. Push to main branch - The complete lab environment (Ubuntu + Windows servers) deploys automatically
+3. Monitor deployment in the GitHub Actions tab
 
-**After clicking the button:**
-1. You'll be redirected to the Azure portal
-2. Sign in to your Azure account if prompted
-3. Select your subscription and resource group (or create a new one)
-4. Provide the required parameters:
-   - `adminUsername`: Username for the VM administrator
-   - `adminPassword`: Secure password for the VM (will be prompted securely)
-5. Review and create the deployment
-
-**Note:** The template will deploy both Ubuntu and Windows Server VMs with shared networking resources in a single deployment. For detailed manual deployment steps, parameter customization, and cost control options, see [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md).
+**Note:** The automated deployment will create both Ubuntu and Windows Server VMs with shared networking resources in a single deployment. For detailed manual deployment steps, parameter customization, and cost control options, see [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md).
 
 ---
 

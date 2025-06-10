@@ -24,3 +24,7 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+
+# Bicep compiled ARM templates (build artifacts)
+*.json
+!*.parameters.json
