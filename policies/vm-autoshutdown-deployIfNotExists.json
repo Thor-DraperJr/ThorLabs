@@ -1,0 +1,124 @@
+{
+  "mode": "Indexed",
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "field": "type",
+          "equals": "Microsoft.Compute/virtualMachines"
+        },
+        {
+          "anyOf": [
+            {
+              "field": "tags['AutoShutdown_Time']",
+              "exists": "false"
+            },
+            {
+              "field": "tags['AutoShutdown_TimeZone']",
+              "exists": "false"
+            },
+            {
+              "field": "tags['AutoShutdown_Time']",
+              "notEquals": "[parameters('requiredShutdownTime')]"
+            },
+            {
+              "field": "tags['AutoShutdown_TimeZone']",
+              "notEquals": "[parameters('requiredTimeZone')]"
+            }
+          ]
+        }
+      ]
+    },
+    "then": {
+      "effect": "deployIfNotExists",
+      "details": {
+        "type": "Microsoft.Resources/tags",
+        "name": "default",
+        "existenceCondition": {
+          "allOf": [
+            {
+              "field": "tags['AutoShutdown_Time']",
+              "equals": "[parameters('requiredShutdownTime')]"
+            },
+            {
+              "field": "tags['AutoShutdown_TimeZone']",
+              "equals": "[parameters('requiredTimeZone')]"
+            }
+          ]
+        },
+        "roleDefinitionIds": [
+          "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+        ],
+        "deployment": {
+          "properties": {
+            "mode": "incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {
+                "vmResourceId": {
+                  "type": "string"
+                },
+                "requiredShutdownTime": {
+                  "type": "string"
+                },
+                "requiredTimeZone": {
+                  "type": "string"
+                },
+                "existingTags": {
+                  "type": "object"
+                }
+              },
+              "variables": {
+                "updatedTags": "[union(parameters('existingTags'), createObject('AutoShutdown_Time', parameters('requiredShutdownTime'), 'AutoShutdown_TimeZone', parameters('requiredTimeZone')))]"
+              },
+              "resources": [
+                {
+                  "type": "Microsoft.Resources/tags",
+                  "apiVersion": "2021-04-01",
+                  "name": "default",
+                  "scope": "[parameters('vmResourceId')]",
+                  "properties": {
+                    "tags": "[variables('updatedTags')]"
+                  }
+                }
+              ]
+            },
+            "parameters": {
+              "vmResourceId": {
+                "value": "[field('id')]"
+              },
+              "requiredShutdownTime": {
+                "value": "[parameters('requiredShutdownTime')]"
+              },
+              "requiredTimeZone": {
+                "value": "[parameters('requiredTimeZone')]"
+              },
+              "existingTags": {
+                "value": "[field('tags')]"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "parameters": {
+    "requiredShutdownTime": {
+      "type": "String",
+      "defaultValue": "19:00",
+      "metadata": {
+        "displayName": "Required Shutdown Time",
+        "description": "The required value for the AutoShutdown_Time tag (24-hour format)"
+      }
+    },
+    "requiredTimeZone": {
+      "type": "String",
+      "defaultValue": "Eastern Standard Time",
+      "metadata": {
+        "displayName": "Required Time Zone",
+        "description": "The required value for the AutoShutdown_TimeZone tag"
+      }
+    }
+  }
+}
