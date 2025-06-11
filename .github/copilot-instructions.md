@@ -193,6 +193,19 @@ if [ $? -ne 0 ]; then
 fi
 ```
 
+## Azure-Specific Copilot Instructions
+
+When using GitHub Copilot for Azure in this repository, always follow these additional requirements:
+
+- **Use Azure-Native Tools and Services**: All code, scripts, and workflows must use Microsoft/Azure native technologies (Bicep, Azure CLI, PowerShell for Windows, Azure Policy, etc.). Do not use Terraform, ARM templates, or third-party IaC tools.
+- **Invoke Azure Best Practices**: When generating Azure code, scripts, or workflows, always reference and apply the latest Azure code generation and deployment best practices. Use the Copilot tools for Azure code gen and deployment best practices if available.
+- **Strict Naming and Tagging**: Ensure all Azure resources, variables, and parameters follow the `thorlabs-{service}{number}-{region}` naming convention and include required tags (`Environment`, `Project`, `AutoShutdown_Time`, `AutoShutdown_TimeZone`).
+- **Security and Compliance**: Never commit secrets or sensitive values. Use GitHub Actions secrets and Azure Key Vault for secret management. Always follow the principle of least privilege and include appropriate NSG/firewall rules.
+- **Documentation and Validation**: Document all Azure-related changes in the appropriate `README.md` and `docs/` files. Validate Bicep templates and scripts before committing.
+- **Reference Patterns**: Use the provided Bicep, PowerShell, and Azure CLI code patterns as templates for all new Azure resources and automation.
+
+> **Note:** For any Azure Functions or Azure Static Web Apps, always check and apply the respective Copilot best practices tools before generating code.
+
 ## File and Change Documentation Requirements
 
 ### README.md Updates Required For:
