@@ -4,7 +4,18 @@ This document provides comprehensive guidelines for GitHub Copilot suggestions a
 
 ## Core Principles
 
-### 1. Microsoft/Azure Native Technology Stack
+### 1. Continuous Improvement and Adaptive Evolution
+
+The ThorLabs repository is committed to continuous improvement through flexible deployments and evolving best practices while maintaining the core lab mission as the primary focus:
+
+- **Lab Mission First**: All changes and improvements must support the fundamental goal of providing a reliable, cost-effective Azure lab environment for learning and experimentation
+- **Flexible Deployment Strategies**: Support multiple deployment approaches (automated GitHub Actions, manual CLI, modular Bicep templates) to accommodate different learning styles and use cases
+- **Evolving Best Practices**: Regularly update templates, documentation, and workflows based on Azure service improvements, security updates, and community feedback
+- **Incremental Enhancement**: Prioritize small, tested improvements over large architectural changes to maintain stability and reliability
+- **Community-Driven Growth**: Welcome contributions that align with lab objectives while maintaining strict quality and documentation standards
+- **Backward Compatibility**: Ensure existing deployments continue to function when introducing new features or improvements
+
+### 2. Microsoft/Azure Native Technology Stack
 All suggestions and implementations must prioritize Microsoft/Azure native tools and technologies:
 
 - **Infrastructure as Code**: Use Bicep templates exclusively (not Terraform or ARM)
@@ -15,7 +26,7 @@ All suggestions and implementations must prioritize Microsoft/Azure native tools
 - **Azure Services**: Prioritize Azure-native solutions over third-party alternatives
 - **Development Tools**: Visual Studio Code, Azure CLI, Bicep CLI
 
-### 2. Strict Naming Conventions
+### 3. Strict Naming Conventions
 All Azure resources MUST follow the established naming scheme:
 
 **Format**: `thorlabs-{service}{number}-{region}`
@@ -37,7 +48,7 @@ All Azure resources MUST follow the established naming scheme:
 - `nsg` - Network Security Group
 - `pip` - Public IP Address
 
-### 3. Directory Structure Requirements
+### 4. Directory Structure Requirements
 Maintain the established directory structure and update documentation when adding new components:
 
 ```

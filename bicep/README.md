@@ -2,6 +2,38 @@
 
 This directory contains specialized Bicep templates for specific workloads and scenarios.
 
+## Scripts Storage Account Template
+
+### Files
+- `scripts-storage.bicep` - Storage account for centralized script distribution
+- `scripts-storage.parameters.json` - Parameter file for deployment
+
+### Purpose
+Deploys a secure storage account for script distribution to VMs with:
+- Blob storage container for scripts (`scripts`)
+- HTTPS-only traffic enforcement
+- 7-day deletion retention policy
+- Appropriate tagging for cost management and governance
+
+### Security Features
+- TLS 1.2 minimum encryption
+- HTTPS-only traffic
+- No public blob access
+- Storage account key access (suitable for lab environment)
+
+### Deployment
+```bash
+az deployment group create \
+  --resource-group thorlabs-rg \
+  --template-file ./bicep/scripts-storage.bicep \
+  --parameters @./bicep/scripts-storage.parameters.json
+```
+
+### Usage
+See [`docs/INSTRUCTIONS.md`](../docs/INSTRUCTIONS.md) for detailed instructions on uploading and downloading scripts from VMs.
+
+---
+
 ## Windows Server 2022 Base Template
 
 ### Files
