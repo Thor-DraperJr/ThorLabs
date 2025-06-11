@@ -1,0 +1,153 @@
+name: Monitor Deploy Azure Lab Environment
+
+# Trigger when the "Deploy Azure Lab Environment" workflow completes
+on:
+  workflow_run:
+    workflows: ["Deploy Azure Lab Environment"]
+    types: [completed]
+
+# Minimal permissions following least-privilege principle
+permissions:
+  issues: write      # Create GitHub issues for failed deployments
+  actions: read      # Read workflow run details and logs
+  contents: read     # Read repository contents (minimal access)
+
+jobs:
+  monitor-deployment:
+    # Only run if the monitored workflow failed
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Only fetch minimal history needed
+          fetch-depth: 1
+
+      - name: Extract workflow failure details
+        id: extract-details
+        run: |
+          # Extract basic workflow information
+          WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          WORKFLOW_URL="${{ github.event.workflow_run.html_url }}"
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          COMMIT_MESSAGE="${{ github.event.workflow_run.head_commit.message }}"
+          
+          # Format timestamp
+          RUN_DATE=$(date -d "${{ github.event.workflow_run.created_at }}" '+%Y-%m-%d %H:%M:%S UTC')
+          
+          echo "workflow_name=${WORKFLOW_NAME}" >> $GITHUB_OUTPUT
+          echo "workflow_url=${WORKFLOW_URL}" >> $GITHUB_OUTPUT
+          echo "run_id=${RUN_ID}" >> $GITHUB_OUTPUT
+          echo "branch=${BRANCH}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${COMMIT_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "run_date=${RUN_DATE}" >> $GITHUB_OUTPUT
+          
+          # Sanitize commit message for safe inclusion (limit length, remove newlines)
+          SAFE_COMMIT_MESSAGE=$(echo "${COMMIT_MESSAGE}" | head -1 | cut -c1-100)
+          echo "commit_message=${SAFE_COMMIT_MESSAGE}" >> $GITHUB_OUTPUT
+
+      - name: Get workflow job details and error summary
+        id: get-errors
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get failed job details using GitHub CLI
+          echo "Fetching failed job details for run ID: ${{ steps.extract-details.outputs.run_id }}"
+          
+          # Get jobs for this workflow run
+          JOBS_JSON=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ steps.extract-details.outputs.run_id }}/jobs" \
+            --jq '.jobs[] | select(.conclusion == "failure")')
+          
+          if [ -z "$JOBS_JSON" ]; then
+            echo "No failed jobs found. Setting generic error summary."
+            echo "error_summary=Workflow failed but no specific job failures detected. Check the workflow run for details." >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Extract job names and create a summary
+          FAILED_JOBS=$(echo "$JOBS_JSON" | jq -r '.name' | head -3)  # Limit to first 3 failed jobs
+          JOB_COUNT=$(echo "$JOBS_JSON" | jq -r '.name' | wc -l)
+          
+          # Create error summary
+          ERROR_SUMMARY="**Failed Jobs:**"
+          while IFS= read -r job_name; do
+            if [ -n "$job_name" ]; then
+              ERROR_SUMMARY="${ERROR_SUMMARY}\n- ${job_name}"
+            fi
+          done <<< "$FAILED_JOBS"
+          
+          if [ "$JOB_COUNT" -gt 3 ]; then
+            ADDITIONAL=$((JOB_COUNT - 3))
+            ERROR_SUMMARY="${ERROR_SUMMARY}\n- ... and ${ADDITIONAL} more job(s)"
+          fi
+          
+          ERROR_SUMMARY="${ERROR_SUMMARY}\n\n*See the workflow run link below for detailed logs and error information.*"
+          
+          # Save to output (escape newlines for GitHub Actions)
+          echo "error_summary<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$ERROR_SUMMARY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub issue for deployment failure
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create issue title with timestamp for uniqueness
+          ISSUE_TITLE="🚨 ${{ steps.extract-details.outputs.workflow_name }} Failed - ${{ steps.extract-details.outputs.run_date }}"
+          
+          # Create detailed issue body with security-conscious information disclosure
+          ISSUE_BODY="## Deployment Failure Alert
+          
+          The **${{ steps.extract-details.outputs.workflow_name }}** workflow has failed and requires attention.
+          
+          ### Failure Details
+          - **Workflow Run:** [${{ steps.extract-details.outputs.workflow_name }} #${{ steps.extract-details.outputs.run_id }}](${{ steps.extract-details.outputs.workflow_url }})
+          - **Branch:** \`${{ steps.extract-details.outputs.branch }}\`
+          - **Commit:** \`${{ steps.extract-details.outputs.commit_sha }}\` - ${{ steps.extract-details.outputs.commit_message }}
+          - **Failed On:** ${{ steps.extract-details.outputs.run_date }}
+          
+          ### Error Summary
+          ${{ steps.get-errors.outputs.error_summary }}
+          
+          ### Next Steps
+          1. **Review the [workflow run](${{ steps.extract-details.outputs.workflow_url }})** for detailed error logs
+          2. **Check Azure resources** in the portal for any partially deployed infrastructure
+          3. **Verify GitHub Actions secrets** are properly configured (see [GitHub Secrets Checklist](docs/GITHUB_SECRETS_CHECKLIST.md))
+          4. **Review recent changes** that may have introduced the failure
+          5. **Consider running cleanup workflow** if partial deployment occurred
+          
+          ### Common Failure Causes
+          - Missing or expired Azure credentials (\`AZURE_CREDENTIALS\`)
+          - Missing admin password (\`ADMIN_PASSWORD\`)
+          - Azure subscription issues or permissions
+          - Resource naming conflicts
+          - Template validation errors
+          - Azure service availability issues
+          
+          ---
+          
+          *This issue was automatically created by the [Monitor Deploy Azure Lab Environment workflow](.github/workflows/monitor.yml).*
+          *For troubleshooting guidance, see [Deploy Workflow Documentation](docs/DEPLOY_WORKFLOW.md).*"
+          
+          # Create the issue using GitHub CLI with proper labels and assignee
+          gh issue create \
+            --title "$ISSUE_TITLE" \
+            --body "$ISSUE_BODY" \
+            --label "ci-failure" \
+            --assignee "ghcp-agent" \
+            --repo "${{ github.repository }}"
+          
+          echo "✅ GitHub issue created successfully for workflow failure"
+
+      - name: Log monitoring completion
+        run: |
+          echo "=== Deployment Monitoring Complete ==="
+          echo "Workflow: ${{ steps.extract-details.outputs.workflow_name }}"
+          echo "Status: Failed"
+          echo "Run URL: ${{ steps.extract-details.outputs.workflow_url }}"
+          echo "Issue created with label 'ci-failure' and assigned to 'ghcp-agent'"
+          echo "Action: GitHub issue created for Software Agent review"

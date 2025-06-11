@@ -58,7 +58,9 @@ thorlabs-vm2-eastus
 - [`README.md`](README.md) — High-level overview, Quick Start deploy button, and quick reference
 - [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md) — Step-by-step deployment and management instructions
 - [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — Checklist and instructions for GitHub Actions secrets
+- [`docs/MONITOR_WORKFLOW.md`](docs/MONITOR_WORKFLOW.md) — Documentation for automated deployment monitoring and failure detection
 - [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — GitHub Actions workflow for automated deployment of both Ubuntu and Windows servers
+- [`.github/workflows/monitor.yml`](.github/workflows/monitor.yml) — GitHub Actions workflow for monitoring deployment failures and creating issues
 - [`.github/workflows/cleanup-lab.yml`](.github/workflows/cleanup-lab.yml) — GitHub Actions workflow for manual cleanup of the lab environment
 - [`.github/COPILOT_INSTRUCTIONS.md`](.github/COPILOT_INSTRUCTIONS.md) — Comprehensive guidelines for GitHub Copilot and contributors
 - [`infra/`](infra/) — Unified Bicep template and parameters for lab environment (both Ubuntu and Windows VMs)
@@ -95,6 +97,21 @@ To use the cleanup workflow:
 3. Click "Run workflow" button
 4. Type "DELETE" in the confirmation field
 5. Click "Run workflow" to execute
+
+---
+
+## Deployment Monitoring
+
+The GitHub Actions workflow in [`.github/workflows/monitor.yml`](.github/workflows/monitor.yml) automatically monitors deployment failures and creates GitHub issues for rapid incident response. This workflow:
+
+- **Automatic Failure Detection** - Triggers when the "Deploy Azure Lab Environment" workflow fails
+- **Intelligent Issue Creation** - Creates detailed GitHub issues with failure context and troubleshooting guidance
+- **Security-Conscious Logging** - Provides error summaries without exposing sensitive information
+- **Streamlined Assignment** - Labels issues with `ci-failure` and assigns to `ghcp-agent` for Software Agent review
+
+The monitoring workflow helps ensure deployment failures are quickly identified and addressed, supporting the lab environment's reliability and continuous improvement goals.
+
+For detailed monitoring configuration and troubleshooting, see [Deployment Monitoring Documentation](docs/MONITOR_WORKFLOW.md).
 
 ---
 

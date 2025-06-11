@@ -32,8 +32,11 @@ This repo is designed to help you automate, document, and control your Azure res
 - `docs/INSTRUCTIONS.md`: Step-by-step deployment and management instructions
 - `docs/GITHUB_SECRETS_CHECKLIST.md`: Checklist and instructions for managing GitHub Actions secrets
 - `docs/DEPLOY_WORKFLOW.md`: Detailed documentation of the automated deployment workflow
+- `docs/MONITOR_WORKFLOW.md`: Documentation for automated deployment monitoring and failure detection
 - `.github/COPILOT_INSTRUCTIONS.md`: Comprehensive guidelines for GitHub Copilot and contributors
 - `.github/workflows/deploy.yml`: Automated deployment workflow for both Ubuntu and Windows servers
+- `.github/workflows/monitor.yml`: Automated monitoring workflow for deployment failure detection
+- `.github/workflows/cleanup-lab.yml`: Manual cleanup workflow for lab environment
 - `infra/lab.bicep`: Unified Bicep template for complete lab environment (Ubuntu + Windows VMs)
 - `bicep/windows-server-base.bicep`: Legacy Bicep template (for reference)
 - `scripts/windows-server-*.ps1`: PowerShell scripts for Windows server configuration
