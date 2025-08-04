@@ -1,0 +1,304 @@
+name: 🚀 Deploy ThorLabs Modular Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployLayer:
+        description: 'Infrastructure layer to deploy'
+        required: true
+        default: 'foundation'
+        type: choice
+        options:
+          - foundation
+          - security
+          - compute
+          - data
+          - all-layers
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'lab'
+        type: choice
+        options:
+          - lab
+          - dev
+          - staging
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  LOCATION: 'eastus2'
+  PROJECT_PREFIX: 'thorlabs'
+
+jobs:
+  # ============================================================================
+  # LAYER 1: FOUNDATION
+  # ============================================================================
+  deploy-foundation:
+    name: 🏗️ Foundation Layer
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deployLayer == 'foundation' || github.event.inputs.deployLayer == 'all-layers' }}
+    
+    outputs:
+      resourceGroupName: ${{ steps.foundation.outputs.resourceGroupName }}
+      keyVaultName: ${{ steps.foundation.outputs.keyVaultName }}
+      logAnalyticsWorkspaceId: ${{ steps.foundation.outputs.logAnalyticsWorkspaceId }}
+      vnetId: ${{ steps.foundation.outputs.vnetId }}
+      subnetIds: ${{ steps.foundation.outputs.subnetIds }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🏗️ Deploy Foundation Infrastructure
+        id: foundation
+        run: |
+          echo "🏗️ Deploying foundation layer..."
+          
+          # Deploy with what-if validation first
+          az deployment sub what-if \
+            --location ${{ env.LOCATION }} \
+            --template-file infra/01-foundation.bicep \
+            --parameters \
+              location=${{ env.LOCATION }} \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }}
+          
+          # Deploy foundation
+          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+            --location ${{ env.LOCATION }} \
+            --template-file infra/01-foundation.bicep \
+            --parameters \
+              location=${{ env.LOCATION }} \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+            --query 'properties.outputs' -o json)
+          
+          # Extract outputs
+          echo "resourceGroupName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.resourceGroupName.value')" >> $GITHUB_OUTPUT
+          echo "keyVaultName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.keyVaultName.value')" >> $GITHUB_OUTPUT
+          echo "logAnalyticsWorkspaceId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.logAnalyticsWorkspaceId.value')" >> $GITHUB_OUTPUT
+          echo "vnetId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.vnetId.value')" >> $GITHUB_OUTPUT
+          echo "subnetIds=$(echo $DEPLOYMENT_OUTPUT | jq -r '.subnetIds.value')" >> $GITHUB_OUTPUT
+          
+          echo "✅ Foundation layer deployed successfully"
+
+  # ============================================================================
+  # LAYER 2: SECURITY
+  # ============================================================================
+  deploy-security:
+    name: 🛡️ Security Layer (Sentinel)
+    runs-on: ubuntu-latest
+    needs: deploy-foundation
+    if: ${{ always() && (github.event.inputs.deployLayer == 'security' || github.event.inputs.deployLayer == 'all-layers') }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🛡️ Deploy Security Services
+        run: |
+          echo "🛡️ Deploying security layer (Microsoft Sentinel)..."
+          
+          # Use foundation outputs (or fetch if running security independently)
+          RESOURCE_GROUP="${{ needs.deploy-foundation.outputs.resourceGroupName || format('{0}-rg1-{1}', env.PROJECT_PREFIX, env.LOCATION) }}"
+          LOG_WORKSPACE_ID="${{ needs.deploy-foundation.outputs.logAnalyticsWorkspaceId }}"
+          LOG_WORKSPACE_NAME="${{ env.PROJECT_PREFIX }}-logs1-${{ env.LOCATION }}"
+          
+          # If running independently, get workspace info
+          if [ -z "$LOG_WORKSPACE_ID" ]; then
+            LOG_WORKSPACE_ID=$(az monitor log-analytics workspace show \
+              --resource-group $RESOURCE_GROUP \
+              --workspace-name $LOG_WORKSPACE_NAME \
+              --query 'id' -o tsv)
+          fi
+          
+          # Deploy with what-if validation
+          az deployment group what-if \
+            --resource-group $RESOURCE_GROUP \
+            --template-file infra/02-security.bicep \
+            --parameters \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+              logAnalyticsWorkspaceId="$LOG_WORKSPACE_ID" \
+              logAnalyticsWorkspaceName="$LOG_WORKSPACE_NAME"
+          
+          # Deploy security services
+          az deployment group create \
+            --resource-group $RESOURCE_GROUP \
+            --template-file infra/02-security.bicep \
+            --parameters \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+              logAnalyticsWorkspaceId="$LOG_WORKSPACE_ID" \
+              logAnalyticsWorkspaceName="$LOG_WORKSPACE_NAME"
+          
+          echo "✅ Security layer deployed successfully"
+
+  # ============================================================================
+  # LAYER 3: COMPUTE
+  # ============================================================================
+  deploy-compute:
+    name: 💻 Compute Layer
+    runs-on: ubuntu-latest
+    needs: deploy-foundation
+    if: ${{ always() && (github.event.inputs.deployLayer == 'compute' || github.event.inputs.deployLayer == 'all-layers') }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 💻 Deploy Compute Services
+        run: |
+          echo "💻 Deploying compute layer..."
+          
+          RESOURCE_GROUP="${{ needs.deploy-foundation.outputs.resourceGroupName || format('{0}-rg1-{1}', env.PROJECT_PREFIX, env.LOCATION) }}"
+          VNET_ID="${{ needs.deploy-foundation.outputs.vnetId }}"
+          KEY_VAULT_NAME="${{ needs.deploy-foundation.outputs.keyVaultName || format('{0}-kv1-{1}', env.PROJECT_PREFIX, env.LOCATION) }}"
+          LOG_WORKSPACE_ID="${{ needs.deploy-foundation.outputs.logAnalyticsWorkspaceId }}"
+          
+          # If running independently, get required resource info
+          if [ -z "$VNET_ID" ]; then
+            VNET_ID=$(az network vnet show \
+              --resource-group $RESOURCE_GROUP \
+              --name "${{ env.PROJECT_PREFIX }}-vnet1-${{ env.LOCATION }}" \
+              --query 'id' -o tsv)
+          fi
+          
+          if [ -z "$LOG_WORKSPACE_ID" ]; then
+            LOG_WORKSPACE_ID=$(az monitor log-analytics workspace show \
+              --resource-group $RESOURCE_GROUP \
+              --workspace-name "${{ env.PROJECT_PREFIX }}-logs1-${{ env.LOCATION }}" \
+              --query 'id' -o tsv)
+          fi
+          
+          # Get subnet IDs
+          SUBNET_DEFAULT=$(az network vnet subnet show \
+            --resource-group $RESOURCE_GROUP \
+            --vnet-name "${{ env.PROJECT_PREFIX }}-vnet1-${{ env.LOCATION }}" \
+            --name "default" \
+            --query 'id' -o tsv)
+          
+          # Deploy compute services
+          az deployment group create \
+            --resource-group $RESOURCE_GROUP \
+            --template-file infra/03-compute.bicep \
+            --parameters \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+              vnetId="$VNET_ID" \
+              subnetIds="{\"default\":\"$SUBNET_DEFAULT\"}" \
+              keyVaultName="$KEY_VAULT_NAME" \
+              logAnalyticsWorkspaceId="$LOG_WORKSPACE_ID" \
+              adminUsername="thorlabsadmin" \
+              adminPassword="${{ secrets.ADMIN_PASSWORD }}"
+          
+          echo "✅ Compute layer deployed successfully"
+
+  # ============================================================================
+  # LAYER 4: DATA
+  # ============================================================================
+  deploy-data:
+    name: 🗄️ Data Layer
+    runs-on: ubuntu-latest
+    needs: deploy-foundation
+    if: ${{ always() && (github.event.inputs.deployLayer == 'data' || github.event.inputs.deployLayer == 'all-layers') }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🗄️ Deploy Data Services
+        run: |
+          echo "🗄️ Deploying data layer..."
+          
+          RESOURCE_GROUP="${{ needs.deploy-foundation.outputs.resourceGroupName || format('{0}-rg1-{1}', env.PROJECT_PREFIX, env.LOCATION) }}"
+          VNET_ID="${{ needs.deploy-foundation.outputs.vnetId }}"
+          KEY_VAULT_NAME="${{ needs.deploy-foundation.outputs.keyVaultName || format('{0}-kv1-{1}', env.PROJECT_PREFIX, env.LOCATION) }}"
+          
+          # If running independently, get required resource info
+          if [ -z "$VNET_ID" ]; then
+            VNET_ID=$(az network vnet show \
+              --resource-group $RESOURCE_GROUP \
+              --name "${{ env.PROJECT_PREFIX }}-vnet1-${{ env.LOCATION }}" \
+              --query 'id' -o tsv)
+          fi
+          
+          # Get subnet IDs
+          SUBNET_DATA=$(az network vnet subnet show \
+            --resource-group $RESOURCE_GROUP \
+            --vnet-name "${{ env.PROJECT_PREFIX }}-vnet1-${{ env.LOCATION }}" \
+            --name "data" \
+            --query 'id' -o tsv)
+          
+          # Deploy data services
+          az deployment group create \
+            --resource-group $RESOURCE_GROUP \
+            --template-file infra/04-data.bicep \
+            --parameters \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+              vnetId="$VNET_ID" \
+              subnetIds="{\"data\":\"$SUBNET_DATA\"}" \
+              keyVaultName="$KEY_VAULT_NAME" \
+              sqlAdminUsername="thorlabsadmin" \
+              sqlAdminPassword="${{ secrets.ADMIN_PASSWORD }}" \
+              enableAzureADAuth=true \
+              azureADAdminUpn="${{ secrets.AZURE_AD_ADMIN_UPN }}" \
+              azureADAdminObjectId="${{ secrets.AZURE_AD_ADMIN_OBJECT_ID }}"
+          
+          echo "✅ Data layer deployed successfully"
+
+  # ============================================================================
+  # SUMMARY
+  # ============================================================================
+  deployment-summary:
+    name: 📋 Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [deploy-foundation, deploy-security, deploy-compute, deploy-data]
+    if: always()
+    
+    steps:
+      - name: 📋 Deployment Results
+        run: |
+          echo "## 🚀 ThorLabs Infrastructure Deployment Complete"
+          echo ""
+          echo "### Deployment Status:"
+          echo "- 🏗️ Foundation: ${{ needs.deploy-foundation.result || 'skipped' }}"
+          echo "- 🛡️ Security: ${{ needs.deploy-security.result || 'skipped' }}"
+          echo "- 💻 Compute: ${{ needs.deploy-compute.result || 'skipped' }}"
+          echo "- 🗄️ Data: ${{ needs.deploy-data.result || 'skipped' }}"
+          echo ""
+          echo "### 🔗 Access Information:"
+          if [[ "${{ needs.deploy-foundation.result }}" == "success" ]]; then
+            echo "- Resource Group: ${{ needs.deploy-foundation.outputs.resourceGroupName }}"
+            echo "- Key Vault: ${{ needs.deploy-foundation.outputs.keyVaultName }}"
+          fi
+          if [[ "${{ needs.deploy-security.result }}" == "success" ]]; then
+            echo "- Microsoft Sentinel: Enabled in Log Analytics workspace"
+          fi
+          echo ""
+          echo "### 🎯 Next Steps:"
+          echo "1. Configure Sentinel data connectors"
+          echo "2. Set up security monitoring rules"
+          echo "3. Connect to virtual machines via RDP"
+          echo "4. Configure database applications"
