@@ -4,35 +4,75 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.36.1.42791",
-      "templateHash": "4828293448656050451"
+      "version": "0.37.4.10188",
+      "templateHash": "12372203407902664106"
     }
   },
   "parameters": {
     "location": {
       "type": "string",
-      "defaultValue": "[resourceGroup().location]"
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "The Azure region where resources will be deployed."
+      }
     },
     "adminUsername": {
-      "type": "string"
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 20,
+      "metadata": {
+        "description": "Administrator username for both virtual machines."
+      }
     },
     "adminPassword": {
-      "type": "securestring"
+      "type": "securestring",
+      "minLength": 12,
+      "maxLength": 123,
+      "metadata": {
+        "description": "Administrator password for both virtual machines."
+      }
     },
     "ubuntuVmSize": {
       "type": "string",
-      "defaultValue": "Standard_DS1_v2"
+      "defaultValue": "Standard_DS1_v2",
+      "allowedValues": [
+        "Standard_B1s",
+        "Standard_B2s",
+        "Standard_DS1_v2",
+        "Standard_DS2_v2",
+        "Standard_D2s_v3"
+      ],
+      "metadata": {
+        "description": "Virtual machine size for the Ubuntu VM."
+      }
     },
     "windowsVmSize": {
       "type": "string",
-      "defaultValue": "Standard_DS1_v2"
+      "defaultValue": "Standard_DS1_v2",
+      "allowedValues": [
+        "Standard_B1s",
+        "Standard_B2s",
+        "Standard_DS1_v2",
+        "Standard_DS2_v2",
+        "Standard_D2s_v3"
+      ],
+      "metadata": {
+        "description": "Virtual machine size for the Windows Server VM."
+      }
+    },
+    "sshPublicKey": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "SSH public key for Ubuntu VM authentication (optional)."
+      }
     }
   },
   "resources": [
     {
       "type": "Microsoft.Network/networkSecurityGroups",
-      "apiVersion": "2023-04-01",
-      "name": "thorlabs-lab-nsg",
+      "apiVersion": "2024-07-01",
+      "name": "thorlabs-nsg1-eastus2",
       "location": "[parameters('location')]",
       "properties": {
         "securityRules": [
@@ -64,7 +104,8 @@
               "description": "Allow RDP access for Windows VM"
             }
           }
-        ]
+        ],
+        "flushConnection": false
       },
       "tags": {
         "Environment": "Lab",
@@ -75,8 +116,8 @@
     },
     {
       "type": "Microsoft.Network/virtualNetworks",
-      "apiVersion": "2023-04-01",
-      "name": "thorlabs-lab-vnet",
+      "apiVersion": "2024-07-01",
+      "name": "thorlabs-vnet1-eastus2",
       "location": "[parameters('location')]",
       "properties": {
         "addressSpace": {
@@ -90,11 +131,13 @@
             "properties": {
               "addressPrefix": "10.10.0.0/24",
               "networkSecurityGroup": {
-                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'thorlabs-lab-nsg')]"
-              }
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'thorlabs-nsg1-eastus2')]"
+              },
+              "defaultOutboundAccess": true
             }
           }
-        ]
+        ],
+        "enableDdosProtection": false
       },
       "tags": {
         "Environment": "Lab",
@@ -103,16 +146,22 @@
         "AutoShutdown_TimeZone": "Eastern Standard Time"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Network/networkSecurityGroups', 'thorlabs-lab-nsg')]"
+        "[resourceId('Microsoft.Network/networkSecurityGroups', 'thorlabs-nsg1-eastus2')]"
       ]
     },
     {
       "type": "Microsoft.Network/publicIPAddresses",
-      "apiVersion": "2023-04-01",
+      "apiVersion": "2024-07-01",
       "name": "thorlabs-vm1-eastus2-pip",
       "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard",
+        "tier": "Regional"
+      },
       "properties": {
-        "publicIPAllocationMethod": "Dynamic"
+        "publicIPAllocationMethod": "Static",
+        "publicIPAddressVersion": "IPv4",
+        "deleteOption": "Delete"
       },
       "tags": {
         "Environment": "Lab",
@@ -123,11 +172,17 @@
     },
     {
       "type": "Microsoft.Network/publicIPAddresses",
-      "apiVersion": "2023-04-01",
+      "apiVersion": "2024-07-01",
       "name": "thorlabs-vm2-eastus2-pip",
       "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard",
+        "tier": "Regional"
+      },
       "properties": {
-        "publicIPAllocationMethod": "Dynamic"
+        "publicIPAllocationMethod": "Static",
+        "publicIPAddressVersion": "IPv4",
+        "deleteOption": "Delete"
       },
       "tags": {
         "Environment": "Lab",
@@ -138,7 +193,7 @@
     },
     {
       "type": "Microsoft.Network/networkInterfaces",
-      "apiVersion": "2023-04-01",
+      "apiVersion": "2024-07-01",
       "name": "thorlabs-vm1-eastus2-nic",
       "location": "[parameters('location')]",
       "properties": {
@@ -147,15 +202,18 @@
             "name": "ipconfig1",
             "properties": {
               "subnet": {
-                "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet'), '2023-04-01').subnets[0].id]"
+                "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-vnet1-eastus2'), '2024-07-01').subnets[0].id]"
               },
               "privateIPAllocationMethod": "Dynamic",
               "publicIPAddress": {
                 "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm1-eastus2-pip')]"
-              }
+              },
+              "primary": true
             }
           }
-        ]
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false
       },
       "tags": {
         "Environment": "Lab",
@@ -165,12 +223,12 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm1-eastus2-pip')]",
-        "[resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet')]"
+        "[resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-vnet1-eastus2')]"
       ]
     },
     {
       "type": "Microsoft.Network/networkInterfaces",
-      "apiVersion": "2023-04-01",
+      "apiVersion": "2024-07-01",
       "name": "thorlabs-vm2-eastus2-nic",
       "location": "[parameters('location')]",
       "properties": {
@@ -179,15 +237,18 @@
             "name": "ipconfig1",
             "properties": {
               "subnet": {
-                "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet'), '2023-04-01').subnets[0].id]"
+                "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-vnet1-eastus2'), '2024-07-01').subnets[0].id]"
               },
               "privateIPAllocationMethod": "Dynamic",
               "publicIPAddress": {
                 "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm2-eastus2-pip')]"
-              }
+              },
+              "primary": true
             }
           }
-        ]
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false
       },
       "tags": {
         "Environment": "Lab",
@@ -196,13 +257,13 @@
         "AutoShutdown_TimeZone": "Eastern Standard Time"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-vnet1-eastus2')]",
         "[resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm2-eastus2-pip')]"
       ]
     },
     {
       "type": "Microsoft.Compute/virtualMachines",
-      "apiVersion": "2023-03-01",
+      "apiVersion": "2024-11-01",
       "name": "thorlabs-vm1-eastus2",
       "location": "[parameters('location')]",
       "properties": {
@@ -212,28 +273,46 @@
         "osProfile": {
           "computerName": "thorlabs-vm1-eastus2",
           "adminUsername": "[parameters('adminUsername')]",
-          "adminPassword": "[parameters('adminPassword')]",
-          "linuxConfiguration": {
-            "disablePasswordAuthentication": false
-          }
+          "adminPassword": "[if(not(empty(parameters('sshPublicKey'))), null(), parameters('adminPassword'))]",
+          "linuxConfiguration": "[if(not(empty(parameters('sshPublicKey'))), createObject('disablePasswordAuthentication', true(), 'ssh', createObject('publicKeys', createArray(createObject('path', format('/home/{0}/.ssh/authorized_keys', parameters('adminUsername')), 'keyData', parameters('sshPublicKey')))), 'provisionVMAgent', true(), 'patchSettings', createObject('patchMode', 'ImageDefault')), createObject('disablePasswordAuthentication', false(), 'provisionVMAgent', true(), 'patchSettings', createObject('patchMode', 'ImageDefault')))]"
         },
         "storageProfile": {
           "imageReference": {
-            "publisher": "Canonical",
-            "offer": "0001-com-ubuntu-server-focal",
-            "sku": "20_04-lts-gen2",
+            "publisher": "canonical",
+            "offer": "0001-com-ubuntu-server-jammy",
+            "sku": "22_04-lts-gen2",
             "version": "latest"
           },
           "osDisk": {
-            "createOption": "FromImage"
+            "name": "thorlabs-vm1-eastus2-osdisk",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            },
+            "deleteOption": "Delete"
           }
         },
         "networkProfile": {
           "networkInterfaces": [
             {
-              "id": "[resourceId('Microsoft.Network/networkInterfaces', 'thorlabs-vm1-eastus2-nic')]"
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', 'thorlabs-vm1-eastus2-nic')]",
+              "properties": {
+                "deleteOption": "Delete"
+              }
             }
           ]
+        },
+        "securityProfile": {
+          "securityType": "TrustedLaunch",
+          "uefiSettings": {
+            "secureBootEnabled": true,
+            "vTpmEnabled": true
+          }
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true
+          }
         }
       },
       "tags": {
@@ -248,7 +327,7 @@
     },
     {
       "type": "Microsoft.Compute/virtualMachines",
-      "apiVersion": "2023-03-01",
+      "apiVersion": "2024-11-01",
       "name": "thorlabs-vm2-eastus2",
       "location": "[parameters('location')]",
       "properties": {
@@ -262,7 +341,11 @@
           "windowsConfiguration": {
             "enableAutomaticUpdates": true,
             "provisionVMAgent": true,
-            "timeZone": "Eastern Standard Time"
+            "timeZone": "Eastern Standard Time",
+            "patchSettings": {
+              "patchMode": "AutomaticByOS",
+              "enableHotpatching": false
+            }
           }
         },
         "storageProfile": {
@@ -277,15 +360,31 @@
             "createOption": "FromImage",
             "managedDisk": {
               "storageAccountType": "Premium_LRS"
-            }
+            },
+            "deleteOption": "Delete"
           }
         },
         "networkProfile": {
           "networkInterfaces": [
             {
-              "id": "[resourceId('Microsoft.Network/networkInterfaces', 'thorlabs-vm2-eastus2-nic')]"
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', 'thorlabs-vm2-eastus2-nic')]",
+              "properties": {
+                "deleteOption": "Delete"
+              }
             }
           ]
+        },
+        "securityProfile": {
+          "securityType": "TrustedLaunch",
+          "uefiSettings": {
+            "secureBootEnabled": true,
+            "vTpmEnabled": true
+          }
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true
+          }
         }
       },
       "tags": {
@@ -302,35 +401,80 @@
   "outputs": {
     "ubuntuVMName": {
       "type": "string",
+      "metadata": {
+        "description": "Name of the Ubuntu virtual machine"
+      },
       "value": "thorlabs-vm1-eastus2"
     },
     "windowsVMName": {
       "type": "string",
+      "metadata": {
+        "description": "Name of the Windows virtual machine"
+      },
       "value": "thorlabs-vm2-eastus2"
     },
     "ubuntuPublicIPAddress": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm1-eastus2-pip'), '2023-04-01').ipAddress]"
+      "metadata": {
+        "description": "Public IP address of the Ubuntu VM"
+      },
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm1-eastus2-pip'), '2024-07-01').ipAddress]"
     },
     "windowsPublicIPAddress": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm2-eastus2-pip'), '2023-04-01').ipAddress]"
+      "metadata": {
+        "description": "Public IP address of the Windows VM"
+      },
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'thorlabs-vm2-eastus2-pip'), '2024-07-01').ipAddress]"
     },
     "adminUsername": {
       "type": "string",
+      "metadata": {
+        "description": "Administrator username for both VMs"
+      },
       "value": "[parameters('adminUsername')]"
     },
     "vnetName": {
       "type": "string",
-      "value": "thorlabs-lab-vnet"
+      "metadata": {
+        "description": "Name of the virtual network"
+      },
+      "value": "thorlabs-vnet1-eastus2"
     },
     "subnetName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-lab-vnet'), '2023-04-01').subnets[0].name]"
+      "metadata": {
+        "description": "Name of the default subnet"
+      },
+      "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', 'thorlabs-vnet1-eastus2'), '2024-07-01').subnets[0].name]"
     },
     "nsgName": {
       "type": "string",
-      "value": "thorlabs-lab-nsg"
+      "metadata": {
+        "description": "Name of the network security group"
+      },
+      "value": "thorlabs-nsg1-eastus2"
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource group location"
+      },
+      "value": "[parameters('location')]"
+    },
+    "ubuntuVMId": {
+      "type": "string",
+      "metadata": {
+        "description": "Ubuntu VM resource ID"
+      },
+      "value": "[resourceId('Microsoft.Compute/virtualMachines', 'thorlabs-vm1-eastus2')]"
+    },
+    "windowsVMId": {
+      "type": "string",
+      "metadata": {
+        "description": "Windows VM resource ID"
+      },
+      "value": "[resourceId('Microsoft.Compute/virtualMachines', 'thorlabs-vm2-eastus2')]"
     }
   }
 }

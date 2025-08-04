@@ -2,14 +2,41 @@
 
 ## Quick Start
 
-Deploy the ThorLabs lab environment manually using the step-by-step instructions in [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md), or use the automated GitHub Actions workflow by pushing to the main branch.
+Deploy the ThorLabs enhanced lab environment with comprehensive Azure services for stable testing and development.
 
-**For automated deployment:**
-1. Set up GitHub Actions secrets as described in [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md)
-2. Push to main branch - The complete lab environment (Ubuntu + Windows servers) deploys automatically
-3. Monitor deployment in the GitHub Actions tab
+### 🚀 **Enhanced Automated Deployment (Recommended)**
+1. **Set up GitHub Actions secrets** - See [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md)
+2. **Choose deployment type** - Push to main branch or use workflow dispatch:
+   - **Core Lab**: VMs, networking, storage, monitoring (~$30-50/month)
+   - **Full Lab**: Core + containers + databases (~$60-100/month)
+   - **Custom**: Choose specific services
+3. **Monitor deployment** - Check GitHub Actions tab for real-time progress
 
-**Note:** The automated deployment will create both Ubuntu and Windows Server VMs with shared networking resources in a single deployment. For detailed manual deployment steps, parameter customization, and cost control options, see [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md).
+### 🛠️ **Interactive Manual Deployment**
+```bash
+# Interactive deployment with guided setup
+./scripts/deploy-lab.sh
+
+# Or direct Azure CLI deployment
+az deployment sub create \
+  --location eastus2 \
+  --template-file infra/master-deployment.bicep \
+  --parameters adminPassword="YourSecurePassword123!"
+```
+
+### 📊 **Lab Management**
+```bash
+# Check status of all resources
+./scripts/manage-lab.sh show-status
+
+# Start/stop VMs to manage costs
+./scripts/manage-lab.sh stop-vms
+
+# Get connection information
+./scripts/manage-lab.sh connect-info
+```
+
+**📖 For comprehensive setup instructions, see [`docs/ENHANCED_LAB_GUIDE.md`](docs/ENHANCED_LAB_GUIDE.md)**
 
 ---
 
@@ -53,32 +80,50 @@ thorlabs-vm2-eastus
 
 ---
 
-## Repository Structure
+## Enhanced Repository Structure
 
-- [`README.md`](README.md) — High-level overview, Quick Start deploy button, and quick reference
-- [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md) — Step-by-step deployment and management instructions
-- [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — Checklist and instructions for GitHub Actions secrets
-- [`docs/MONITOR_WORKFLOW.md`](docs/MONITOR_WORKFLOW.md) — Documentation for automated deployment monitoring and failure detection
-- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — GitHub Actions workflow for automated deployment of both Ubuntu and Windows servers
-- [`.github/workflows/monitor.yml`](.github/workflows/monitor.yml) — GitHub Actions workflow for monitoring deployment failures and creating issues
-- [`.github/workflows/cleanup-lab.yml`](.github/workflows/cleanup-lab.yml) — GitHub Actions workflow for manual cleanup of the lab environment
-- [`.github/COPILOT_INSTRUCTIONS.md`](.github/COPILOT_INSTRUCTIONS.md) — Comprehensive guidelines for GitHub Copilot and contributors
-- [`infra/`](infra/) — Unified Bicep template and parameters for lab environment (both Ubuntu and Windows VMs)
+- [`README.md`](README.md) — High-level overview and quick start guide  
+- [`docs/ENHANCED_LAB_GUIDE.md`](docs/ENHANCED_LAB_GUIDE.md) — **📖 Comprehensive guide for enhanced lab environment**
+- [`docs/INSTRUCTIONS.md`](docs/INSTRUCTIONS.md) — Legacy step-by-step deployment instructions
+- [`docs/GITHUB_SECRETS_CHECKLIST.md`](docs/GITHUB_SECRETS_CHECKLIST.md) — GitHub Actions secrets setup
+- [`.github/workflows/deploy-enhanced.yml`](.github/workflows/deploy-enhanced.yml) — **🚀 Enhanced deployment workflow with options**
+- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — Legacy deployment workflow
+- [`infra/master-deployment.bicep`](infra/master-deployment.bicep) — **🏗️ Master orchestration template**
+- [`infra/enhanced-lab.bicep`](infra/enhanced-lab.bicep) — Enhanced core infrastructure
+- [`infra/container-services.bicep`](infra/container-services.bicep) — Container workloads (ACR, ACI, Container Apps)
+- [`infra/database-services.bicep`](infra/database-services.bicep) — Database services (SQL, PostgreSQL, Cosmos)
+- [`scripts/deploy-lab.sh`](scripts/deploy-lab.sh) — **🛠️ Interactive deployment script**
+- [`scripts/manage-lab.sh`](scripts/manage-lab.sh) — **⚙️ Lab management operations**
 - [`bicep/`](bicep/) — Legacy Bicep templates (for reference)
-- [`scripts/`](scripts/) — PowerShell scripts for server configuration
-- [`policies/`](policies/) — Azure Policy definitions for governance and compliance
-- [`history.md`](history.md) — Log of manual actions and commands
+- [`policies/`](policies/) — Azure Policy definitions for governance
 
-## Automated Deployment
+## Enhanced Lab Environment
 
-The GitHub Actions workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) automatically deploys the complete lab environment on every push to the `main` branch, including:
+The enhanced GitHub Actions workflow provides flexible deployment options for comprehensive Azure testing:
 
-- **Ubuntu Server VM** (`thorlabs-vm1-eastus2`) - General purpose Linux workstation  
-- **Windows Server 2022 VM** (`thorlabs-vm2-eastus2`) - Windows Server configuration with RDP access
-- **Shared networking** - Single VNet (10.10.0.0/16), subnet (10.10.0.0/24), and NSG with SSH/RDP rules
-- **Azure Policy definitions** - For governance and cost control
+### 🏗️ **Core Infrastructure** (Always Deployed)
+- **Ubuntu 22.04 LTS VM** (`thorlabs-vm1-eastus2`) - Development workstation with SSH access
+- **Windows Server 2022 VM** (`thorlabs-vm2-eastus2`) - Windows development with RDP access  
+- **Virtual Network** - Segmented subnets for compute and services (10.10.0.0/16)
+- **Storage Account** - Secure blob storage with service endpoints
+- **Key Vault** - Centralized secrets management with RBAC
+- **Log Analytics Workspace** - Monitoring and logging for all resources
 
-Both virtual machines are deployed in the same shared network infrastructure for simplified management and follow the established naming convention with auto-shutdown policies for cost control.
+### 🐳 **Container Services** (Optional)
+- **Azure Container Registry** - Private container image registry
+- **Container Instances** - On-demand container hosting
+- **Container Apps Environment** - Modern serverless container platform
+
+### 🗄️ **Database Services** (Optional)  
+- **Azure SQL Database** - Managed SQL Server with firewall rules
+- **PostgreSQL Flexible Server** - Open-source database with sample DB
+- **Cosmos DB** - NoSQL database with serverless configuration
+
+### 💰 **Cost Optimization**
+- **Auto-shutdown** at 7 PM ET daily for cost control
+- **Basic SKUs** optimized for lab workloads  
+- **Estimated costs**: $30-100 USD/month depending on services enabled
+- **Management scripts** for easy start/stop operations
 
 ---
 

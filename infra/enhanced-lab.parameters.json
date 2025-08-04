@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus2"
+    },
+    "adminUsername": {
+      "value": "thorlabsadmin"
+    },
+    "adminPassword": {
+      "value": "PLACEHOLDER_PASSWORD"
+    },
+    "sshPublicKey": {
+      "value": ""
+    },
+    "ubuntuVmSize": {
+      "value": "Standard_B1s"
+    },
+    "windowsVmSize": {
+      "value": "Standard_B1s"
+    },
+    "enableMonitoring": {
+      "value": true
+    },
+    "enableStorage": {
+      "value": true
+    },
+    "enableKeyVault": {
+      "value": true
+    },
+    "enableContainerRegistry": {
+      "value": false
+    },
+    "enableSentinel": {
+      "value": false
+    }
+  }
+}

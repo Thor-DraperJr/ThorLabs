@@ -1,0 +1,308 @@
+name: Deploy ThorLabs Lab Environment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+      - '.github/workflows/deploy-enhanced.yml'
+  workflow_dispatch:
+    inputs:
+      deployment_type:
+        description: 'Type of deployment'
+        required: true
+        default: 'core'
+        type: choice
+        options:
+          - 'core'
+          - 'full'
+          - 'validation-only'
+      enable_sentinel:
+        description: 'Enable Azure Sentinel security monitoring'
+        required: false
+        default: false
+        type: boolean
+      vm_size:
+        description: 'VM size (lab-optimized)'
+        required: false
+        default: 'Standard_B1s'
+        type: choice
+        options:
+          - 'Standard_B1s'
+          - 'Standard_B2s'
+          - 'Standard_DS1_v2'
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+  AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+
+jobs:
+  validate:
+    name: Validate Templates
+    runs-on: ubuntu-latest
+    outputs:
+      validation-passed: ${{ steps.validation.outputs.result }}
+    
+    steps:
+      - name: 📁 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: 🔧 Set Azure Subscription
+        run: az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: 🧪 Validate Bicep Templates
+        id: validation
+        run: |
+          echo "🔍 Validating Bicep template compilation..."
+          
+          # Test individual templates
+          templates=("enhanced-lab.bicep" "container-services.bicep" "database-services.bicep" "master-deployment.bicep")
+          validation_errors=0
+          
+          for template in "${templates[@]}"; do
+            if [ -f "infra/$template" ]; then
+              echo "📋 Validating $template..."
+              if ! az bicep build --file "infra/$template" --stdout > /dev/null; then
+                echo "❌ Validation failed for $template"
+                validation_errors=$((validation_errors + 1))
+              else
+                echo "✅ $template compiled successfully"
+              fi
+            fi
+          done
+          
+          # Test master deployment validation
+          echo "🎯 Testing master deployment validation..."
+          az deployment sub validate \
+            --location eastus2 \
+            --template-file infra/master-deployment.bicep \
+            --parameters adminUsername=thorlabsadmin adminPassword="${{ env.ADMIN_PASSWORD }}" \
+                        deployEnhancedLab=true deployContainerServices=false deployDatabaseServices=false
+          
+          if [ $validation_errors -eq 0 ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "✅ All validations passed!"
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "❌ $validation_errors template(s) failed validation"
+            exit 1
+          fi
+
+  deploy-core:
+    name: Deploy Core Lab Infrastructure
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ needs.validate.outputs.validation-passed == 'success' && github.event.inputs.deployment_type != 'validation-only' }}
+    outputs:
+      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
+      resource-group: ${{ steps.deploy.outputs.resource-group }}
+    
+    steps:
+      - name: 📁 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: 🔧 Set Azure Subscription
+        run: az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: 🚀 Deploy Master Template
+        id: deploy
+        run: |
+          echo "🚀 Deploying ThorLabs Enhanced Lab Environment..."
+          
+          # Determine deployment parameters based on inputs
+          DEPLOYMENT_TYPE="${{ github.event.inputs.deployment_type || 'core' }}"
+          ENABLE_SENTINEL="${{ github.event.inputs.enable_sentinel || 'false' }}"
+          VM_SIZE="${{ github.event.inputs.vm_size || 'Standard_B1s' }}"
+          
+          # For 'full' deployment, enable all services
+          if [ "$DEPLOYMENT_TYPE" = "full" ]; then
+            INCLUDE_CONTAINERS="true"
+            INCLUDE_DATABASES="true"
+          else
+            INCLUDE_CONTAINERS="false"
+            INCLUDE_DATABASES="false"
+          fi
+          
+          DEPLOYMENT_NAME="thorlabs-lab-$(date +%Y%m%d-%H%M%S)"
+          
+          echo "📋 Deployment Configuration:"
+          echo "  - Type: $DEPLOYMENT_TYPE"
+          echo "  - Containers: $INCLUDE_CONTAINERS"
+          echo "  - Databases: $INCLUDE_DATABASES"
+          echo "  - Sentinel: $ENABLE_SENTINEL"
+          echo "  - VM Size: $VM_SIZE"
+          echo "  - Deployment Name: $DEPLOYMENT_NAME"
+          
+          # Execute deployment
+          az deployment sub create \
+            --name "$DEPLOYMENT_NAME" \
+            --location eastus2 \
+            --template-file infra/master-deployment.bicep \
+            --parameters \
+              adminUsername=thorlabsadmin \
+              adminPassword="${{ env.ADMIN_PASSWORD }}" \
+              ubuntuVmSize="$VM_SIZE" \
+              windowsVmSize="$VM_SIZE" \
+              deployEnhancedLab=true \
+              deployContainerServices="$INCLUDE_CONTAINERS" \
+              deployDatabaseServices="$INCLUDE_DATABASES" \
+              enableSentinel="$ENABLE_SENTINEL"
+          
+          echo "deployment-id=$DEPLOYMENT_NAME" >> $GITHUB_OUTPUT
+          echo "resource-group=thorlabs-rg" >> $GITHUB_OUTPUT
+
+  test-deployment:
+    name: Test Deployed Resources
+    runs-on: ubuntu-latest
+    needs: deploy-core
+    if: ${{ needs.deploy-core.outputs.deployment-id != '' }}
+    
+    steps:
+      - name: 📁 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: 🔧 Set Azure Subscription
+        run: az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: 🧪 Test Core Resources
+        run: |
+          echo "🔍 Testing deployed resources..."
+          
+          RG_NAME="${{ needs.deploy-core.outputs.resource-group }}"
+          
+          # Test resource group exists
+          if az group show --name "$RG_NAME" > /dev/null 2>&1; then
+            echo "✅ Resource group '$RG_NAME' exists"
+          else
+            echo "❌ Resource group '$RG_NAME' not found"
+            exit 1
+          fi
+          
+          # Test VMs exist and are running
+          echo "🖥️ Checking virtual machines..."
+          VMS=$(az vm list --resource-group "$RG_NAME" --query "[].{Name:name, State:powerState}" --output table)
+          echo "$VMS"
+          
+          # Test networking
+          echo "🌐 Checking network resources..."
+          az network vnet list --resource-group "$RG_NAME" --query "[].{Name:name, AddressSpace:addressSpace.addressPrefixes}" --output table
+          
+          # Test storage account
+          echo "💾 Checking storage account..."
+          az storage account list --resource-group "$RG_NAME" --query "[].{Name:name, Kind:kind, Tier:accessTier}" --output table
+          
+          echo "✅ Resource validation completed!"
+
+  post-deployment:
+    name: Post-Deployment Tasks
+    runs-on: ubuntu-latest
+    needs: [deploy-core, test-deployment]
+    if: ${{ always() && needs.deploy-core.outputs.deployment-id != '' }}
+    
+    steps:
+      - name: 📁 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: 🔧 Set Azure Subscription
+        run: az account set --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: 📊 Generate Deployment Summary
+        run: |
+          echo "📋 Generating deployment summary..."
+          
+          RG_NAME="${{ needs.deploy-core.outputs.resource-group }}"
+          DEPLOYMENT_ID="${{ needs.deploy-core.outputs.deployment-id }}"
+          
+          # Get deployment outputs
+          OUTPUTS=$(az deployment sub show --name "$DEPLOYMENT_ID" --query "properties.outputs" --output json)
+          
+          echo "## 🚀 ThorLabs Lab Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment ID:** $DEPLOYMENT_ID" >> $GITHUB_STEP_SUMMARY
+          echo "**Resource Group:** $RG_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment Time:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Get VM information
+          echo "### 💻 Virtual Machines" >> $GITHUB_STEP_SUMMARY
+          az vm list --resource-group "$RG_NAME" --query "[].{Name:name, Size:hardwareProfile.vmSize, State:powerState, PublicIP:publicIps}" --output table >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Get connection information
+          echo "### 🔗 Connection Information" >> $GITHUB_STEP_SUMMARY
+          echo "Use the following commands to connect to your VMs:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          
+          # Get Ubuntu VM public IP
+          UBUNTU_IP=$(az vm list-ip-addresses --resource-group "$RG_NAME" --name "thorlabs-vm1-eastus2" --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" --output tsv 2>/dev/null || echo "Not found")
+          if [ "$UBUNTU_IP" != "Not found" ]; then
+            echo "# SSH to Ubuntu VM:" >> $GITHUB_STEP_SUMMARY
+            echo "ssh thorlabsadmin@$UBUNTU_IP" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Get Windows VM public IP
+          WINDOWS_IP=$(az vm list-ip-addresses --resource-group "$RG_NAME" --name "thorlabs-vm2-eastus2" --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" --output tsv 2>/dev/null || echo "Not found")
+          if [ "$WINDOWS_IP" != "Not found" ]; then
+            echo "# RDP to Windows VM:" >> $GITHUB_STEP_SUMMARY
+            echo "mstsc /v:$WINDOWS_IP" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 💰 Cost Management" >> $GITHUB_STEP_SUMMARY
+          echo "- 🕰️ Auto-shutdown enabled at 7 PM ET daily" >> $GITHUB_STEP_SUMMARY
+          echo "- 💡 Estimated monthly cost: $50-100 USD with auto-shutdown" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Monitor costs in [Azure Cost Management](https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/overview)" >> $GITHUB_STEP_SUMMARY
+
+      - name: 🏷️ Tag Deployment
+        run: |
+          echo "🏷️ Adding deployment metadata tags..."
+          
+          RG_NAME="${{ needs.deploy-core.outputs.resource-group }}"
+          
+          az group update --name "$RG_NAME" --tags \
+            "LastDeployment=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "DeploymentMethod=GitHub-Actions" \
+            "DeploymentId=${{ needs.deploy-core.outputs.deployment-id }}" \
+            "GitCommit=${{ github.sha }}" \
+            "GitBranch=${{ github.ref_name }}"
+
+  notify-completion:
+    name: Notify Deployment Completion
+    runs-on: ubuntu-latest
+    needs: [validate, deploy-core, test-deployment, post-deployment]
+    if: ${{ always() }}
+    
+    steps:
+      - name: 📢 Deployment Status
+        run: |
+          if [ "${{ needs.deploy-core.result }}" = "success" ] && [ "${{ needs.test-deployment.result }}" = "success" ]; then
+            echo "🎉 ThorLabs Lab Environment deployed successfully!"
+            echo "✅ All validation and testing completed"
+            echo "🔗 Access your resources in the Azure portal: https://portal.azure.com/#@/resource/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/thorlabs-rg"
+          else
+            echo "❌ Deployment failed or was skipped"
+            echo "📋 Check the workflow logs for details"
+          fi
