@@ -1,6 +1,7 @@
 // thorlabs-sentinel.bicep - ThorLabs Azure Sentinel Security Operations Center
-// Deploys Azure Sentinel with Log Analytics workspace for security monitoring and threat detection
-// Updated for Azure MCP compliance with latest API versions and security best practices
+// LAB/PLAYGROUND ENVIRONMENT: Deploys clean, properly named Sentinel resources
+// Optimized for learning and experimentation with minimal data retention
+// Following ThorLabs naming conventions and security best practices
 
 @description('The Azure region where resources will be deployed.')
 param location string = resourceGroup().location
@@ -10,14 +11,14 @@ param location string = resourceGroup().location
 @maxLength(63)
 param workspaceName string = 'thorlabs-sentinel1-eastus2'
 
-@description('Workspace data retention in days (90-730 days for Sentinel).')
-@minValue(90)
-@maxValue(730)
-param retentionInDays int = 90
+@description('Workspace data retention in days (30-90 days for lab environment).')
+@minValue(30)
+@maxValue(90)
+param retentionInDays int = 30
 
-@description('Daily ingestion limit in GB. Set to -1 for unlimited.')
+@description('Daily ingestion limit in GB. Low limit for lab environment.')
 @minValue(-1)
-param dailyQuotaGb int = 5
+param dailyQuotaGb int = 1
 
 @description('Workspace SKU pricing tier.')
 @allowed(['Free', 'Standard', 'Premium', 'PerNode', 'PerGB2018', 'Standalone', 'CapacityReservation'])
@@ -32,7 +33,7 @@ param publicNetworkAccessForIngestion string = 'Enabled'
 param publicNetworkAccessForQuery string = 'Enabled'
 
 @description('Use existing Log Analytics workspace instead of creating new one.')
-param useExistingWorkspace bool = true
+param useExistingWorkspace bool = false
 
 @description('Existing workspace resource group (if different from current deployment).')
 param existingWorkspaceResourceGroup string = resourceGroup().name
@@ -70,8 +71,10 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2025-02
   tags: {
     Environment: 'Lab'
     Project: 'ThorLabs'
+    Purpose: 'Lab/Playground Security Operations Center'
     AutoShutdown_Time: '19:00'
-    Purpose: 'Security Operations Center'
+    DataRetention: 'Low'
+    CostOptimized: 'true'
     Service: 'Sentinel'
   }
 }
@@ -96,8 +99,10 @@ resource securityInsights 'Microsoft.OperationsManagement/solutions@2015-11-01-p
   tags: {
     Environment: 'Lab'
     Project: 'ThorLabs'
+    Purpose: 'Lab/Playground Security Operations Center'
     AutoShutdown_Time: '19:00'
-    Purpose: 'Security Operations Center'
+    DataRetention: 'Low'
+    CostOptimized: 'true'
     Service: 'Sentinel'
   }
 }

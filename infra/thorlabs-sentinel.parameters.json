@@ -6,13 +6,13 @@
       "value": "eastus"
     },
     "workspaceName": {
-      "value": "edutainment-sentinel-logs"
+      "value": "thorlabs-sentinel1-eastus2"
     },
     "retentionInDays": {
       "value": 30
     },
     "dailyQuotaGb": {
-      "value": -1
+      "value": 1
     },
     "skuName": {
       "value": "PerGB2018"
@@ -27,7 +27,7 @@
       "value": true
     },
     "useExistingWorkspace": {
-      "value": true
+      "value": false
     },
     "existingWorkspaceResourceGroup": {
       "value": "thorlabs-rg"
