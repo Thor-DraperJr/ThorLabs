@@ -32,7 +32,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enabledForDiskEncryption: true
     enableSoftDelete: true
     softDeleteRetentionInDays: 7
-    enablePurgeProtection: false // Disabled for lab environment
+    enablePurgeProtection: true // Required by Azure policy
     accessPolicies: []
     networkAcls: {
       defaultAction: 'Allow'
