@@ -1,0 +1,127 @@
+name: ThorLabs Deploy v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'What to do?'
+        required: true
+        default: 'validate'
+        type: choice
+        options:
+          - 'validate'
+          - 'deploy'
+          - 'clean-deploy'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure Subscription
+        run: |
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+
+      - name: 🏗️ Ensure Resource Group Exists
+        run: |
+          echo "🏗️ Ensuring resource group exists..."
+          az group create --name thorlabs-rg --location eastus2 --tags Environment=Lab Project=ThorLabs AutoShutdown_Time=19:00 || echo "Resource group already exists"
+
+      # VALIDATION STEPS
+      - name: 🧪 Compile Templates
+        run: |
+          echo "🔧 Compiling Bicep templates..."
+          for template in infra/*.bicep; do
+            if [ -f "$template" ]; then
+              echo "Compiling: $template"
+              az bicep build --file "$template" --stdout > /dev/null
+              echo "✅ $(basename $template) compiled"
+            fi
+          done
+
+      - name: 🧪 Validate Lab Template
+        run: |
+          echo "🖥️ Validating lab template..."
+          az deployment group validate \
+            --resource-group thorlabs-rg \
+            --template-file infra/lab.bicep \
+            --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD"
+          echo "✅ Lab template validated"
+
+      - name: 🧪 Validate Sentinel Template
+        run: |
+          echo "🛡️ Validating Sentinel template..."
+          if [ -f "infra/thorlabs-sentinel.bicep" ]; then
+            az deployment group validate \
+              --resource-group thorlabs-rg \
+              --template-file infra/thorlabs-sentinel.bicep \
+              --parameters @infra/thorlabs-sentinel.parameters.json
+            echo "✅ Sentinel template validated"
+          fi
+
+      # DEPLOYMENT STEPS (only if not validation-only)
+      - name: 🗑️ Clean Deploy (if requested)
+        if: ${{ github.event.inputs.action == 'clean-deploy' }}
+        run: |
+          echo "🗑️ Deleting resource group for clean deployment..."
+          az group delete --name thorlabs-rg --yes --no-wait || echo "Resource group doesn't exist"
+          echo "⏳ Waiting for deletion to complete..."
+          while az group show --name thorlabs-rg --output none 2>/dev/null; do
+            echo "Still deleting..."
+            sleep 30
+          done
+          echo "✅ Clean slate ready"
+          
+          echo "🏗️ Recreating resource group..."
+          az group create --name thorlabs-rg --location eastus2 --tags Environment=Lab Project=ThorLabs AutoShutdown_Time=19:00
+
+      - name: 🚀 Deploy Lab Environment
+        if: ${{ github.event.inputs.action == 'deploy' || github.event.inputs.action == 'clean-deploy' }}
+        run: |
+          echo "🚀 Deploying lab environment..."
+          DEPLOYMENT_NAME="thorlabs-$(date +%Y%m%d-%H%M%S)"
+          
+          az deployment group create \
+            --name "$DEPLOYMENT_NAME" \
+            --resource-group thorlabs-rg \
+            --template-file infra/lab.bicep \
+            --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD"
+          
+          echo "✅ Lab environment deployed"
+
+      - name: 🛡️ Deploy Sentinel
+        if: ${{ github.event.inputs.action == 'deploy' || github.event.inputs.action == 'clean-deploy' }}
+        run: |
+          echo "🛡️ Deploying Sentinel SOC..."
+          if [ -f "infra/thorlabs-sentinel.bicep" ]; then
+            SENTINEL_NAME="sentinel-$(date +%Y%m%d-%H%M%S)"
+            
+            az deployment group create \
+              --name "$SENTINEL_NAME" \
+              --resource-group thorlabs-rg \
+              --template-file infra/thorlabs-sentinel.bicep \
+              --parameters @infra/thorlabs-sentinel.parameters.json
+            
+            echo "✅ Sentinel deployed"
+          fi
+
+      - name: 🎉 Summary
+        run: |
+          echo "🎉 Action '${{ github.event.inputs.action }}' completed successfully!"
+          
+          if [ "${{ github.event.inputs.action }}" != "validate" ]; then
+            echo ""
+            echo "🔗 Azure Portal: https://portal.azure.com/#@/resource/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/thorlabs-rg"
+            echo "🛡️ Sentinel: https://portal.azure.com/#blade/Microsoft_Azure_Security_Insights/MainMenuBlade"
+          fi

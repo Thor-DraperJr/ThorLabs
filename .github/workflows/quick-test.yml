@@ -1,0 +1,104 @@
+name: Quick Test ThorLabs Templates
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      test_scope:
+        description: 'What to test'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'compilation'
+          - 'validation'
+          - 'what-if'
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure Subscription
+        run: |
+          az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: 🔧 Quick Compilation Test
+        if: ${{ github.event.inputs.test_scope == 'all' || github.event.inputs.test_scope == 'compilation' }}
+        run: |
+          echo "🔧 Quick Bicep compilation test..."
+          for template in infra/*.bicep bicep/*.bicep; do
+            if [ -f "$template" ]; then
+              echo "✓ Testing: $template"
+              az bicep build --file "$template" --stdout > /dev/null
+            fi
+          done
+          echo "✅ All templates compiled successfully!"
+
+      - name: ⚡ Quick Validation Test
+        if: ${{ github.event.inputs.test_scope == 'all' || github.event.inputs.test_scope == 'validation' }}
+        run: |
+          echo "⚡ Quick validation test..."
+          
+          # Test main lab template
+          echo "Testing lab.bicep..."
+          az deployment group validate \
+            --resource-group thorlabs-rg \
+            --template-file infra/lab.bicep \
+            --parameters adminPassword="TestPassword123!" \
+            --parameters @infra/lab.parameters.json \
+            --only-show-errors
+          
+          # Test Sentinel template  
+          echo "Testing thorlabs-sentinel.bicep..."
+          az deployment group validate \
+            --resource-group thorlabs-rg \
+            --template-file infra/thorlabs-sentinel.bicep \
+            --parameters @infra/thorlabs-sentinel.parameters.json \
+            --only-show-errors
+          
+          echo "✅ Quick validation passed!"
+
+      - name: 🔍 What-If Preview
+        if: ${{ github.event.inputs.test_scope == 'all' || github.event.inputs.test_scope == 'what-if' }}
+        run: |
+          echo "🔍 What-if analysis preview..."
+          az deployment group what-if \
+            --resource-group thorlabs-rg \
+            --template-file infra/lab.bicep \
+            --parameters adminPassword="TestPassword123!" \
+            --parameters @infra/lab.parameters.json \
+            --result-format ResourceIdOnly
+          echo "✅ What-if analysis completed!"
+
+      - name: 🎯 Test Summary
+        run: |
+          echo "🎯 Quick Test Results:"
+          echo "✅ All requested tests completed successfully!"
+          echo ""
+          echo "📋 Tested components:"
+          case "${{ github.event.inputs.test_scope }}" in
+            "all")
+              echo "  ✓ Bicep template compilation"
+              echo "  ✓ Azure deployment validation"
+              echo "  ✓ What-if analysis preview"
+              ;;
+            "compilation")
+              echo "  ✓ Bicep template compilation"
+              ;;
+            "validation")
+              echo "  ✓ Azure deployment validation"
+              ;;
+            "what-if")
+              echo "  ✓ What-if analysis preview"
+              ;;
+          esac
+          echo ""
+          echo "🚀 Ready for deployment via main workflow!"

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus"
+    },
+    "workspaceName": {
+      "value": "edutainment-sentinel-logs"
+    },
+    "retentionInDays": {
+      "value": 30
+    },
+    "dailyQuotaGb": {
+      "value": -1
+    },
+    "skuName": {
+      "value": "PerGB2018"
+    },
+    "publicNetworkAccessForIngestion": {
+      "value": "Enabled"
+    },
+    "publicNetworkAccessForQuery": {
+      "value": "Enabled"
+    },
+    "enableDataConnectors": {
+      "value": true
+    }
+  }
+}

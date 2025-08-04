@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus2"
+    },
+    "workspaceName": {
+      "value": "thorlabs-sentinel-eastus2"
+    },
+    "workspaceSku": {
+      "value": "PerGB2018"
+    },
+    "retentionInDays": {
+      "value": 90
+    },
+    "dailyQuotaGb": {
+      "value": 1
+    },
+    "enableDataExport": {
+      "value": false
+    },
+    "unifiedSentinelBillingOnly": {
+      "value": true
+    },
+    "enableLogAccessUsingOnlyResourcePermissions": {
+      "value": true
+    }
+  }
+}

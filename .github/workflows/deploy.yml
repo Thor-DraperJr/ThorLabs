@@ -1,13 +1,25 @@
-name: Deploy Azure Lab Environment
+name: Deploy ThorLabs Azure Lab Environment
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'infra/**'
+      - 'bicep/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:  # Allow manual triggering
     inputs:
       delete_before_deploy:
         description: 'Delete resource group before deployment (for clean redeployment)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      validation_only:
+        description: 'Run validation tests only (skip deployment)'
         required: false
         default: 'false'
         type: choice
@@ -35,97 +47,184 @@ jobs:
         run: |
           az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 
-      - name: Delete Resource Group (if requested)
-        if: ${{ github.event.inputs.delete_before_deploy == 'true' }}
+      - name: 🏗️ Ensure Resource Group Exists (for validation)
         run: |
-          echo "Deleting resource group thorlabs-rg for clean redeployment..."
+          echo "🏗️ Ensuring resource group thorlabs-rg exists for validation..."
+          az group create --name thorlabs-rg --location eastus2 --tags Environment=Lab Project=ThorLabs AutoShutdown_Time=19:00 || echo "Resource group already exists"
+
+      # ========== TESTING PHASE ==========
+      - name: 🧪 Test Bicep Compilation
+        run: |
+          echo "🔧 Testing Bicep template compilation..."
+          for template in infra/*.bicep bicep/*.bicep; do
+            if [ -f "$template" ]; then
+              echo "Testing compilation of: $template"
+              az bicep build --file "$template" --stdout > /dev/null
+              echo "✅ $template compiled successfully"
+            fi
+          done
+
+      - name: 🧪 Validate Lab Template
+        run: |
+          echo "🖥️ Validating lab.bicep template..."
+          if [ -f "infra/lab.bicep" ] && [ -f "infra/lab.parameters.json" ]; then
+            az deployment group validate \
+              --resource-group thorlabs-rg \
+              --template-file infra/lab.bicep \
+              --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD" \
+              --only-show-errors
+            echo "✅ Lab template validation passed"
+          else
+            echo "⚠️ Lab template files not found, skipping validation"
+          fi
+
+      - name: 🧪 Validate Sentinel Template  
+        run: |
+          echo "🛡️ Validating thorlabs-sentinel.bicep template..."
+          if [ -f "infra/thorlabs-sentinel.bicep" ] && [ -f "infra/thorlabs-sentinel.parameters.json" ]; then
+            az deployment group validate \
+              --resource-group thorlabs-rg \
+              --template-file infra/thorlabs-sentinel.bicep \
+              --parameters @infra/thorlabs-sentinel.parameters.json \
+              --only-show-errors
+            echo "✅ Sentinel template validation passed"
+          else
+            echo "⚠️ Sentinel template files not found, skipping validation"
+          fi
+
+      - name: 🧪 Validate Individual Templates
+        run: |
+          echo "� Validating additional Bicep templates..."
+          
+          if [ -f "bicep/windows-server-base.bicep" ]; then
+            echo "🖥️ Validating Windows Server template..."
+            az deployment group validate \
+              --resource-group thorlabs-rg \
+              --template-file bicep/windows-server-base.bicep \
+              --parameters adminPassword="$ADMIN_PASSWORD" \
+              --parameters @bicep/windows-server-base.parameters.json \
+              --only-show-errors
+            echo "✅ Windows Server template validation passed"
+          fi
+          
+          if [ -f "bicep/scripts-storage.bicep" ]; then
+            echo "📦 Validating Storage template..."
+            az deployment group validate \
+              --resource-group thorlabs-rg \
+              --template-file bicep/scripts-storage.bicep \
+              --parameters @bicep/scripts-storage.parameters.json \
+              --only-show-errors
+            echo "✅ Storage template validation passed"
+          fi
+
+      - name: 🧪 What-If Analysis
+        run: |
+          echo "🔍 Running what-if analysis for lab deployment..."
+          if [ -f "infra/lab.bicep" ] && [ -f "infra/lab.parameters.json" ]; then
+            az deployment group what-if \
+              --resource-group thorlabs-rg \
+              --template-file infra/lab.bicep \
+              --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD" \
+              --result-format ResourceIdOnly
+            echo "✅ What-if analysis completed"
+          else
+            echo "⚠️ Lab template files not found, skipping what-if analysis"
+          fi
+
+      # ========== STOP HERE IF VALIDATION ONLY ==========
+      - name: 🛑 Validation Complete - Stopping Here
+        if: ${{ github.event.inputs.validation_only == 'true' }}
+        run: |
+          echo "✅ All validation tests passed successfully!"
+          echo "🛑 Stopping here as requested (validation_only = true)"
+          echo "To deploy, re-run without validation_only option."
+
+      # ========== DEPLOYMENT PHASE ==========
+      - name: Delete Resource Group (if requested)
+        if: ${{ github.event.inputs.delete_before_deploy == 'true' && github.event.inputs.validation_only != 'true' }}
+        run: |
+          echo "🗑️ Deleting resource group thorlabs-rg for clean redeployment..."
           az group delete --name thorlabs-rg --yes --no-wait || echo "Resource group does not exist or already deleted"
           echo "Waiting for resource group deletion to complete..."
           while az group show --name thorlabs-rg --output none 2>/dev/null; do
             echo "Waiting for resource group deletion..."
             sleep 30
           done
-          echo "Resource group deletion completed"
+          echo "✅ Resource group deletion completed"
 
       - name: Create Resource Group
+        if: ${{ github.event.inputs.validation_only != 'true' }}
         run: |
-          echo "Ensuring resource group thorlabs-rg exists..."
-          az group create --name thorlabs-rg --location eastus2
+          echo "🏗️ Ensuring resource group thorlabs-rg exists..."
+          az group create --name thorlabs-rg --location eastus2 --tags Environment=Lab Project=ThorLabs AutoShutdown_Time=19:00
 
-      - name: Validate Bicep Template
+      - name: 🚀 Deploy Lab Environment
+        if: ${{ github.event.inputs.validation_only != 'true' }}
         run: |
-          echo "Validating unified lab template..."
-          az deployment group validate \
-            --resource-group thorlabs-rg \
-            --template-file infra/lab.bicep \
-            --parameters adminPassword="$ADMIN_PASSWORD" \
-            --parameters @infra/lab.parameters.json \
-            --debug
-
-      - name: Deploy Lab Environment
-        run: |
-          echo "Deploying unified lab environment (Ubuntu + Windows VMs)..."
+          echo "🚀 Deploying unified lab environment (Ubuntu + Windows VMs)..."
           DEPLOYMENT_NAME="thorlabs-lab-deployment-$(date +%Y%m%d-%H%M%S)"
           echo "Deployment name: $DEPLOYMENT_NAME"
           
-          # Create deployment log file
-          DEPLOYMENT_LOG="/tmp/deployment-${DEPLOYMENT_NAME}.log"
-          
-          # Run deployment with debug output and capture logs
-          set +e  # Don't exit on error so we can capture logs
           az deployment group create \
             --name "$DEPLOYMENT_NAME" \
             --resource-group thorlabs-rg \
             --template-file infra/lab.bicep \
-            --parameters adminPassword="$ADMIN_PASSWORD" \
-            --parameters @infra/lab.parameters.json \
-            --verbose \
-            --debug > "$DEPLOYMENT_LOG" 2>&1
+            --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD" \
+            --verbose
           
-          DEPLOYMENT_RESULT=$?
-          set -e  # Re-enable exit on error
-          
-          echo "=== DEPLOYMENT LOG SUMMARY ==="
-          if [ $DEPLOYMENT_RESULT -eq 0 ]; then
-            echo "✅ Deployment completed successfully"
-            echo "Last 20 lines of deployment log:"
-            tail -20 "$DEPLOYMENT_LOG"
-          else
-            echo "❌ Deployment failed with exit code: $DEPLOYMENT_RESULT"
-            echo "=== ERROR DETAILS ==="
-            echo "Last 50 lines of deployment log:"
-            tail -50 "$DEPLOYMENT_LOG"
-            echo "=== FULL DEPLOYMENT LOG ==="
-            cat "$DEPLOYMENT_LOG"
-            exit $DEPLOYMENT_RESULT
-          fi
+          echo "✅ Lab environment deployment completed successfully"
 
-      - name: Deploy Azure Policies
+      - name: 🛡️ Deploy Sentinel SOC
+        if: ${{ github.event.inputs.validation_only != 'true' }}
         run: |
-          echo "Deploying Azure Policy definitions..."
+          echo "🛡️ Deploying Azure Sentinel Security Operations Center..."
+          SENTINEL_DEPLOYMENT_NAME="thorlabs-sentinel-deployment-$(date +%Y%m%d-%H%M%S)"
+          echo "Sentinel deployment name: $SENTINEL_DEPLOYMENT_NAME"
+          
+          az deployment group create \
+            --name "$SENTINEL_DEPLOYMENT_NAME" \
+            --resource-group thorlabs-rg \
+            --template-file infra/thorlabs-sentinel.bicep \
+            --parameters @infra/thorlabs-sentinel.parameters.json \
+            --verbose
+          
+          echo "✅ Sentinel SOC deployment completed successfully"
+
+      - name: 📋 Deploy Azure Policies
+        if: ${{ github.event.inputs.validation_only != 'true' }}
+        run: |
+          echo "📋 Deploying Azure Policy definitions..."
           for policy in policies/*.bicep; do
             if [ -f "$policy" ]; then
               echo "Deploying policy: $policy"
               az deployment sub create \
                 --location eastus2 \
                 --template-file "$policy" \
-                --verbose \
-                --debug
+                --verbose
             fi
           done
+          echo "✅ Azure policies deployed successfully"
 
-      - name: Output Deployment Summary
+      - name: 🎉 Deployment Summary
+        if: ${{ github.event.inputs.validation_only != 'true' }}
         run: |
-          echo "=== ThorLabs Lab Environment Deployment Complete ==="
-          echo "Resources deployed:"
-          echo "  - Ubuntu Server VM (thorlabs-vm1-eastus2) in shared network"
-          echo "  - Windows Server 2022 VM (thorlabs-vm2-eastus2) in shared network"
-          echo "  - Shared VNet (10.10.0.0/16) with subnet (10.10.0.0/24)"
-          echo "  - Shared NSG with SSH (22) and RDP (3389) access rules"
-          echo "  - Azure Policy definitions for governance"
+          echo "🎉 ThorLabs Lab Environment Deployment Complete!"
           echo ""
-          echo "Next steps:"
-          echo "  1. Connect to Ubuntu server via SSH for lab workloads"
-          echo "  2. Connect to Windows server via RDP for additional configuration"
-          echo "  3. Review deployed resources in Azure portal"
-          echo "  4. Verify auto-shutdown policies are applied for cost control"
+          echo "📊 Resources deployed:"
+          echo "  ✅ Ubuntu Server VM (thorlabs-vm1-eastus2)"
+          echo "  ✅ Windows Server 2022 VM (thorlabs-vm2-eastus2)"
+          echo "  ✅ Shared VNet (10.10.0.0/16) with subnet (10.10.0.0/24)"
+          echo "  ✅ NSG with SSH (22) and RDP (3389) access rules"
+          echo "  ✅ Azure Sentinel SOC with Log Analytics workspace"
+          echo "  ✅ Security monitoring rules and workbooks"
+          echo "  ✅ Azure Policy definitions for governance"
+          echo ""
+          echo "🔗 Quick Links:"
+          echo "  📊 Azure Portal: https://portal.azure.com/#@/resource/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/thorlabs-rg"
+          echo "  🛡️ Sentinel: https://portal.azure.com/#blade/Microsoft_Azure_Security_Insights/MainMenuBlade"
+          echo ""
+          echo "📝 Next steps:"
+          echo "  1. 🖥️ Connect to Ubuntu server via SSH"
+          echo "  2. 🖥️ Connect to Windows server via RDP"
+          echo "  3. 🛡️ Review Sentinel dashboard for security monitoring"
+          echo "  4. ⏰ Verify auto-shutdown policies (19:00 ET daily)"

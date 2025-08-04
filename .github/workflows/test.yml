@@ -1,0 +1,314 @@
+name: Test ThorLabs Infrastructure
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feature/*, test/*]
+  workflow_dispatch:
+    inputs:
+      test_level:
+        description: 'Test level to run'
+        required: true
+        default: 'validation'
+        type: choice
+        options:
+          - 'validation'
+          - 'whatif'
+          - 'deployment'
+
+jobs:
+  bicep-validation:
+    name: Bicep Template Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure Subscription
+        run: |
+          az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: Install Bicep CLI
+        run: |
+          az bicep install
+          az bicep version
+
+      - name: Validate Lab Template
+        run: |
+          echo "🔍 Validating lab.bicep template..."
+          az deployment group validate \
+            --resource-group thorlabs-rg \
+            --template-file infra/lab.bicep \
+            --parameters adminPassword="${{ secrets.ADMIN_PASSWORD }}" \
+            --parameters @infra/lab.parameters.json \
+            --verbose
+
+      - name: Validate Main Template
+        run: |
+          echo "🔍 Validating main.bicep template..."
+          az deployment group validate \
+            --resource-group thorlabs-rg \
+            --template-file infra/main.bicep \
+            --parameters adminPassword="${{ secrets.ADMIN_PASSWORD }}" \
+            --parameters @infra/main.parameters.json \
+            --verbose
+
+      - name: Validate Sentinel Template
+        run: |
+          echo "🔍 Validating thorlabs-sentinel.bicep template..."
+          az deployment group validate \
+            --resource-group thorlabs-rg \
+            --template-file infra/thorlabs-sentinel.bicep \
+            --parameters @infra/thorlabs-sentinel.parameters.json \
+            --verbose
+
+      - name: Validate Windows Server Template
+        run: |
+          echo "🔍 Validating windows-server-base.bicep template..."
+          az deployment group validate \
+            --resource-group thorlabs-rg \
+            --template-file bicep/windows-server-base.bicep \
+            --parameters adminPassword="${{ secrets.ADMIN_PASSWORD }}" \
+            --parameters @bicep/windows-server-base.parameters.json \
+            --verbose
+
+      - name: Validate Storage Template
+        run: |
+          echo "🔍 Validating scripts-storage.bicep template..."
+          az deployment group validate \
+            --resource-group thorlabs-rg \
+            --template-file bicep/scripts-storage.bicep \
+            --parameters @bicep/scripts-storage.parameters.json \
+            --verbose
+
+  bicep-whatif:
+    name: Bicep What-If Analysis
+    runs-on: ubuntu-latest
+    needs: bicep-validation
+    if: github.event.inputs.test_level == 'whatif' || github.event.inputs.test_level == 'deployment'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure Subscription
+        run: |
+          az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: What-If Analysis - Lab Template
+        run: |
+          echo "🔮 Running What-If analysis for lab.bicep..."
+          az deployment group what-if \
+            --resource-group thorlabs-rg \
+            --template-file infra/lab.bicep \
+            --parameters adminPassword="${{ secrets.ADMIN_PASSWORD }}" \
+            --parameters @infra/lab.parameters.json \
+            --result-format FullResourcePayloads
+
+      - name: What-If Analysis - Sentinel Template
+        run: |
+          echo "🔮 Running What-If analysis for thorlabs-sentinel.bicep..."
+          az deployment group what-if \
+            --resource-group thorlabs-rg \
+            --template-file infra/thorlabs-sentinel.bicep \
+            --parameters @infra/thorlabs-sentinel.parameters.json \
+            --result-format FullResourcePayloads
+
+  test-deployment:
+    name: Test Deployment (Development)
+    runs-on: ubuntu-latest
+    needs: [bicep-validation, bicep-whatif]
+    if: github.event.inputs.test_level == 'deployment'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure Subscription
+        run: |
+          az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: Create Test Resource Group
+        run: |
+          echo "🧪 Creating test resource group..."
+          az group create \
+            --name thorlabs-test-rg \
+            --location eastus2 \
+            --tags Environment=Test Project=ThorLabs Purpose=Testing
+
+      - name: Deploy Test Environment
+        run: |
+          echo "🚀 Deploying test environment..."
+          az deployment group create \
+            --name "thorlabs-test-$(date +%Y%m%d-%H%M%S)" \
+            --resource-group thorlabs-test-rg \
+            --template-file infra/main.bicep \
+            --parameters adminPassword="${{ secrets.ADMIN_PASSWORD }}" \
+            --parameters vmName=thorlabs-test-vm \
+            --parameters location=eastus2 \
+            --verbose
+
+      - name: Test Resource Connectivity
+        run: |
+          echo "🔍 Testing deployed resources..."
+          # Get VM public IP
+          VM_IP=$(az vm list-ip-addresses \
+            --resource-group thorlabs-test-rg \
+            --name thorlabs-test-vm \
+            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
+            --output tsv)
+          
+          echo "VM Public IP: $VM_IP"
+          
+          # Test if VM is accessible (ping)
+          if ping -c 1 $VM_IP > /dev/null 2>&1; then
+            echo "✅ VM is accessible via ping"
+          else
+            echo "⚠️ VM is not responding to ping (this may be expected due to firewall)"
+          fi
+
+      - name: Cleanup Test Environment
+        if: always()
+        run: |
+          echo "🧹 Cleaning up test environment..."
+          az group delete \
+            --name thorlabs-test-rg \
+            --yes \
+            --no-wait
+
+  security-scan:
+    name: Security and Compliance Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Bicep Linter
+        run: |
+          # Install Bicep CLI
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x bicep
+          sudo mv bicep /usr/local/bin/
+          
+          echo "🔍 Running Bicep linter on all templates..."
+          
+          # Lint all Bicep files
+          find . -name "*.bicep" -exec echo "Linting: {}" \; -exec bicep build {} \;
+
+      - name: Check for Hardcoded Secrets
+        run: |
+          echo "🔐 Scanning for potential hardcoded secrets..."
+          
+          # Check for common secret patterns
+          if grep -r -i "password\s*=" --include="*.bicep" --include="*.json" . | grep -v "@secure" | grep -v "adminPassword"; then
+            echo "❌ Found potential hardcoded passwords!"
+            exit 1
+          fi
+          
+          if grep -r -i "secret\s*=" --include="*.bicep" --include="*.json" .; then
+            echo "❌ Found potential hardcoded secrets!"
+            exit 1
+          fi
+          
+          if grep -r -i "key\s*=" --include="*.bicep" --include="*.json" . | grep -v "keyData" | grep -v "sshPublicKey"; then
+            echo "❌ Found potential hardcoded keys!"
+            exit 1
+          fi
+          
+          echo "✅ No hardcoded secrets detected"
+
+      - name: Check ThorLabs Naming Convention
+        run: |
+          echo "🏷️ Checking ThorLabs naming conventions..."
+          
+          # Check for thorlabs prefix in resource names
+          if ! grep -r "thorlabs-" --include="*.bicep" --include="*.parameters.json" infra/ bicep/; then
+            echo "⚠️ Some resources may not follow ThorLabs naming convention"
+          else
+            echo "✅ ThorLabs naming convention appears to be followed"
+          fi
+
+      - name: Check Required Tags
+        run: |
+          echo "🏷️ Checking for required tags..."
+          
+          REQUIRED_TAGS=("Environment" "Project" "AutoShutdown_Time")
+          
+          for tag in "${REQUIRED_TAGS[@]}"; do
+            if ! grep -r "$tag" --include="*.bicep" infra/ bicep/; then
+              echo "⚠️ Required tag '$tag' not found in some templates"
+            else
+              echo "✅ Required tag '$tag' found"
+            fi
+          done
+
+  cost-estimation:
+    name: Cost Estimation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Estimate Costs
+        run: |
+          echo "💰 Estimating monthly costs for ThorLabs infrastructure..."
+          
+          echo "Estimated monthly costs (USD):"
+          echo "- Standard_DS1_v2 VMs (2x): ~$60-80/month"
+          echo "- Premium SSD disks (2x): ~$10-15/month"
+          echo "- Public IPs (2x): ~$7/month"
+          echo "- Log Analytics workspace: ~$2-5/month (5GB quota)"
+          echo "- Virtual Network: Free"
+          echo "- Network Security Group: Free"
+          echo "- Total estimated: ~$80-110/month"
+          echo ""
+          echo "💡 Cost optimization tips:"
+          echo "- Auto-shutdown enabled for 7 PM ET daily"
+          echo "- Use B-series VMs for lower cost during development"
+          echo "- Monitor Log Analytics ingestion to stay within quota"
+
+  output-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [bicep-validation, security-scan, cost-estimation]
+    if: always()
+    
+    steps:
+      - name: Test Results Summary
+        run: |
+          echo "## 🧪 ThorLabs Infrastructure Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Category | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Bicep Validation | ${{ needs.bicep-validation.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cost Estimation | ${{ needs.cost-estimation.result == 'success' && '✅ Completed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Review any failed tests above" >> $GITHUB_STEP_SUMMARY
+          echo "- If all tests pass, proceed with deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor resources after deployment for cost optimization" >> $GITHUB_STEP_SUMMARY

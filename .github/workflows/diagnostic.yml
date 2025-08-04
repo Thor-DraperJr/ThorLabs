@@ -1,0 +1,79 @@
+name: ThorLabs Simple Test
+
+on:
+  workflow_dispatch:  # Manual trigger only (no inputs to avoid GitHub issues)
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure Subscription
+        run: |
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          echo "✅ Successfully connected to Azure"
+
+      - name: 🔍 Check Files and Environment
+        run: |
+          echo "📁 Repository structure:"
+          ls -la
+          echo ""
+          echo "� Infra directory:"
+          ls -la infra/
+          echo ""
+          echo "� Azure CLI version:"
+          az version --output table
+          echo ""
+          echo "� Current subscription:"
+          az account show --output table
+
+      - name: 🧪 Test Basic Bicep Compilation
+        run: |
+          echo "🔧 Testing lab.bicep compilation..."
+          if [ -f "infra/lab.bicep" ]; then
+            az bicep build --file infra/lab.bicep --stdout > /dev/null
+            echo "✅ Lab template compiled successfully"
+          else
+            echo "❌ Lab template not found"
+            exit 1
+          fi
+
+      - name: 🏗️ Test Resource Group Creation
+        run: |
+          echo "🏗️ Testing resource group creation..."
+          az group create \
+            --name thorlabs-test-rg \
+            --location eastus2 \
+            --tags Environment=Test Project=ThorLabs
+          echo "✅ Test resource group created"
+
+      - name: 🧪 Test Template Validation (Basic)
+        run: |
+          echo "🖥️ Testing basic template validation..."
+          az deployment group validate \
+            --resource-group thorlabs-test-rg \
+            --template-file infra/lab.bicep \
+            --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD"
+          echo "✅ Template validation passed"
+
+      - name: � Cleanup Test Resources
+        run: |
+          echo "🧹 Cleaning up test resources..."
+          az group delete --name thorlabs-test-rg --yes --no-wait
+          echo "✅ Cleanup initiated"
+
+      - name: 🎉 Test Complete
+        run: |
+          echo "🎉 All tests passed successfully!"
+          echo "Your Azure connection and templates are working correctly."

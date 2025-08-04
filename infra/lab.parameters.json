@@ -10,6 +10,15 @@
     },
     "adminPassword": {
       "value": "ThorLabs2024!"
+    },
+    "ubuntuVmSize": {
+      "value": "Standard_DS1_v2"
+    },
+    "windowsVmSize": {
+      "value": "Standard_DS1_v2"
+    },
+    "sshPublicKey": {
+      "value": ""
     }
   }
 }
