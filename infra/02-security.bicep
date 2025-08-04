@@ -65,22 +65,9 @@ resource sentinelSolution 'Microsoft.OperationsManagement/solutions@2015-11-01-p
 // SECURITY DATA CONNECTORS (Basic Lab Setup)
 // ============================================================================
 
-resource azureActivityConnector 'Microsoft.SecurityInsights/dataConnectors@2023-02-01' = {
-  scope: resourceGroup()
-  name: '${projectPrefix}-azure-activity-connector'
-  kind: 'AzureActivityLog'
-  properties: {
-    subscriptionId: subscription().subscriptionId
-    dataTypes: {
-      logs: {
-        state: 'Enabled'
-      }
-    }
-  }
-  dependsOn: [
-    sentinelSolution
-  ]
-}
+// Note: Data connectors are typically configured through the Sentinel portal
+// or via REST API after deployment. Bicep support is limited.
+// This placeholder can be extended with custom deployment scripts if needed.
 
 // ============================================================================
 // OUTPUTS
