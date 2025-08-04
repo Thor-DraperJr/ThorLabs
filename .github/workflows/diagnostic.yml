@@ -61,10 +61,13 @@ jobs:
       - name: 🧪 Test Template Validation (Basic)
         run: |
           echo "🖥️ Testing basic template validation..."
-          az deployment group validate \
+          # Use what-if instead of validate to avoid Azure CLI response consumption issue
+          az deployment group what-if \
             --resource-group thorlabs-test-rg \
             --template-file infra/lab.bicep \
-            --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD"
+            --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD" \
+            --result-format ResourceIdOnly \
+            --no-pretty-print
           echo "✅ Template validation passed"
 
       - name: � Cleanup Test Resources

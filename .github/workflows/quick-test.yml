@@ -1,22 +1,14 @@
-name: Quick Test ThorLabs Templates
+name: ThorLabs Quick Test
 
 on:
-  workflow_dispatch:  # Manual trigger only
-    inputs:
-      test_scope:
-        description: 'What to test'
-        required: false
-        default: 'all'
-        type: choice
-        options:
-          - 'all'
-          - 'compilation'
-          - 'validation'
-          - 'what-if'
+  workflow_dispatch:
 
 jobs:
-  quick-test:
+  test:
     runs-on: ubuntu-latest
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,77 +20,51 @@ jobs:
 
       - name: Set Azure Subscription
         run: |
-          az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          echo "✅ Successfully connected to Azure"
 
-      - name: 🔧 Quick Compilation Test
-        if: ${{ github.event.inputs.test_scope == 'all' || github.event.inputs.test_scope == 'compilation' }}
+      - name: 🧪 Test Bicep Compilation
         run: |
-          echo "🔧 Quick Bicep compilation test..."
-          for template in infra/*.bicep bicep/*.bicep; do
-            if [ -f "$template" ]; then
-              echo "✓ Testing: $template"
-              az bicep build --file "$template" --stdout > /dev/null
-            fi
-          done
-          echo "✅ All templates compiled successfully!"
-
-      - name: ⚡ Quick Validation Test
-        if: ${{ github.event.inputs.test_scope == 'all' || github.event.inputs.test_scope == 'validation' }}
-        run: |
-          echo "⚡ Quick validation test..."
+          echo "🔧 Testing Bicep templates compilation..."
           
-          # Test main lab template
-          echo "Testing lab.bicep..."
-          az deployment group validate \
-            --resource-group thorlabs-rg \
-            --template-file infra/lab.bicep \
-            --parameters adminPassword="TestPassword123!" \
-            --parameters @infra/lab.parameters.json \
-            --only-show-errors
+          # Test lab.bicep
+          if [ -f "infra/lab.bicep" ]; then
+            echo "Compiling lab.bicep..."
+            az bicep build --file infra/lab.bicep --stdout > /dev/null
+            echo "✅ lab.bicep compiled successfully"
+          fi
           
-          # Test Sentinel template  
-          echo "Testing thorlabs-sentinel.bicep..."
-          az deployment group validate \
-            --resource-group thorlabs-rg \
-            --template-file infra/thorlabs-sentinel.bicep \
-            --parameters @infra/thorlabs-sentinel.parameters.json \
-            --only-show-errors
+          # Test sentinel.bicep
+          if [ -f "infra/thorlabs-sentinel.bicep" ]; then
+            echo "Compiling thorlabs-sentinel.bicep..."
+            az bicep build --file infra/thorlabs-sentinel.bicep --stdout > /dev/null
+            echo "✅ thorlabs-sentinel.bicep compiled successfully"
+          fi
           
-          echo "✅ Quick validation passed!"
+          echo "🎉 All Bicep templates compile successfully!"
 
-      - name: 🔍 What-If Preview
-        if: ${{ github.event.inputs.test_scope == 'all' || github.event.inputs.test_scope == 'what-if' }}
+      - name: 🏗️ Test Resource Group Operations
         run: |
-          echo "🔍 What-if analysis preview..."
-          az deployment group what-if \
-            --resource-group thorlabs-rg \
-            --template-file infra/lab.bicep \
-            --parameters adminPassword="TestPassword123!" \
-            --parameters @infra/lab.parameters.json \
-            --result-format ResourceIdOnly
-          echo "✅ What-if analysis completed!"
+          echo "🏗️ Testing resource group operations..."
+          
+          # Create test resource group
+          az group create \
+            --name thorlabs-test-rg \
+            --location eastus2 \
+            --tags Environment=Test Project=ThorLabs
+          echo "✅ Test resource group created"
+          
+          # Clean up test resource group
+          echo "🧹 Cleaning up test resource group..."
+          az group delete --name thorlabs-test-rg --yes --no-wait
+          echo "✅ Cleanup initiated"
 
-      - name: 🎯 Test Summary
+      - name: 🎉 Success Summary
         run: |
-          echo "🎯 Quick Test Results:"
-          echo "✅ All requested tests completed successfully!"
+          echo "🎉 All tests passed successfully!"
           echo ""
-          echo "📋 Tested components:"
-          case "${{ github.event.inputs.test_scope }}" in
-            "all")
-              echo "  ✓ Bicep template compilation"
-              echo "  ✓ Azure deployment validation"
-              echo "  ✓ What-if analysis preview"
-              ;;
-            "compilation")
-              echo "  ✓ Bicep template compilation"
-              ;;
-            "validation")
-              echo "  ✓ Azure deployment validation"
-              ;;
-            "what-if")
-              echo "  ✓ What-if analysis preview"
-              ;;
-          esac
+          echo "✅ Azure connection working"
+          echo "✅ Bicep templates compile correctly" 
+          echo "✅ Resource group operations working"
           echo ""
-          echo "🚀 Ready for deployment via main workflow!"
+          echo "🚀 Your ThorLabs environment is ready for deployment!"

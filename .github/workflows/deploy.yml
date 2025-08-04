@@ -68,11 +68,13 @@ jobs:
         run: |
           echo "🖥️ Validating lab.bicep template..."
           if [ -f "infra/lab.bicep" ] && [ -f "infra/lab.parameters.json" ]; then
-            az deployment group validate \
+            # Use what-if for more reliable validation
+            az deployment group what-if \
               --resource-group thorlabs-rg \
               --template-file infra/lab.bicep \
               --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD" \
-              --only-show-errors
+              --result-format ResourceIdOnly \
+              --no-pretty-print
             echo "✅ Lab template validation passed"
           else
             echo "⚠️ Lab template files not found, skipping validation"
@@ -82,11 +84,13 @@ jobs:
         run: |
           echo "🛡️ Validating thorlabs-sentinel.bicep template..."
           if [ -f "infra/thorlabs-sentinel.bicep" ] && [ -f "infra/thorlabs-sentinel.parameters.json" ]; then
-            az deployment group validate \
+            # Use what-if for more reliable validation
+            az deployment group what-if \
               --resource-group thorlabs-rg \
               --template-file infra/thorlabs-sentinel.bicep \
               --parameters @infra/thorlabs-sentinel.parameters.json \
-              --only-show-errors
+              --result-format ResourceIdOnly \
+              --no-pretty-print
             echo "✅ Sentinel template validation passed"
           else
             echo "⚠️ Sentinel template files not found, skipping validation"
