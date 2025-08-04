@@ -1,0 +1,82 @@
+name: 🏗️ Deploy Foundation Only
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'lab'
+        type: choice
+        options:
+          - lab
+          - dev
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  LOCATION: 'eastus2'
+  PROJECT_PREFIX: 'thorlabs'
+
+jobs:
+  deploy-foundation:
+    name: 🏗️ Foundation Infrastructure
+    runs-on: ubuntu-latest
+    
+    outputs:
+      resourceGroupName: ${{ steps.foundation.outputs.resourceGroupName }}
+      keyVaultName: ${{ steps.foundation.outputs.keyVaultName }}
+      logAnalyticsWorkspaceId: ${{ steps.foundation.outputs.logAnalyticsWorkspaceId }}
+      vnetId: ${{ steps.foundation.outputs.vnetId }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🏗️ Deploy Foundation (Core Infrastructure)
+        id: foundation
+        run: |
+          echo "🏗️ Deploying foundation infrastructure..."
+          echo "📋 Components: Resource Group, VNet, Key Vault, Log Analytics"
+          
+          # Deploy foundation
+          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+            --location ${{ env.LOCATION }} \
+            --template-file infra/01-foundation.bicep \
+            --parameters \
+              location=${{ env.LOCATION }} \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+            --query 'properties.outputs' -o json)
+          
+          # Extract outputs
+          echo "resourceGroupName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.resourceGroupName.value')" >> $GITHUB_OUTPUT
+          echo "keyVaultName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.keyVaultName.value')" >> $GITHUB_OUTPUT
+          echo "logAnalyticsWorkspaceId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.logAnalyticsWorkspaceId.value')" >> $GITHUB_OUTPUT
+          echo "vnetId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.vnetId.value')" >> $GITHUB_OUTPUT
+          
+          echo ""
+          echo "✅ Foundation deployed successfully!"
+          echo "📋 Resource Group: $(echo $DEPLOYMENT_OUTPUT | jq -r '.resourceGroupName.value')"
+          echo "🔑 Key Vault: $(echo $DEPLOYMENT_OUTPUT | jq -r '.keyVaultName.value')"
+          echo "📊 Log Analytics: Ready for Sentinel"
+
+      - name: 🎯 Next Steps
+        run: |
+          echo "## 🎯 Foundation Complete - Next Steps:"
+          echo ""
+          echo "### Option 1: Deploy Security (Recommended for Security Engineers)"
+          echo "- Run workflow: '🛡️ Deploy Security (Sentinel)'"
+          echo "- Gets Microsoft Sentinel up and running"
+          echo ""
+          echo "### Option 2: Deploy Everything"
+          echo "- Run workflow: '🚀 Deploy Complete Lab'"
+          echo "- Includes VMs, databases, and all services"
+          echo ""
+          echo "### Option 3: Deploy Individual Services"
+          echo "- Run workflow: '💻 Deploy Compute Only' (VMs)"
+          echo "- Run workflow: '🗄️ Deploy Data Only' (Databases)"

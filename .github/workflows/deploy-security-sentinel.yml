@@ -1,0 +1,154 @@
+name: 🛡️ Deploy Security (Sentinel)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'lab'
+        type: choice
+        options:
+          - lab
+          - dev
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  LOCATION: 'eastus2'
+  PROJECT_PREFIX: 'thorlabs'
+
+jobs:
+  check-foundation:
+    name: 🔍 Check Foundation
+    runs-on: ubuntu-latest
+    outputs:
+      foundationExists: ${{ steps.check.outputs.exists }}
+      resourceGroupName: ${{ steps.check.outputs.resourceGroupName }}
+      
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🔍 Check if Foundation Exists
+        id: check
+        run: |
+          RESOURCE_GROUP="${{ env.PROJECT_PREFIX }}-rg1-${{ env.LOCATION }}"
+          
+          if az group show --name "$RESOURCE_GROUP" &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "resourceGroupName=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+            echo "✅ Foundation found: $RESOURCE_GROUP"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "❌ Foundation not found. You need to run '🏗️ Deploy Foundation Only' first."
+          fi
+
+  deploy-foundation:
+    name: 🏗️ Deploy Foundation First
+    runs-on: ubuntu-latest
+    needs: check-foundation
+    if: ${{ needs.check-foundation.outputs.foundationExists == 'false' }}
+    
+    outputs:
+      resourceGroupName: ${{ steps.foundation.outputs.resourceGroupName }}
+      logAnalyticsWorkspaceId: ${{ steps.foundation.outputs.logAnalyticsWorkspaceId }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🏗️ Deploy Foundation Infrastructure
+        id: foundation
+        run: |
+          echo "🏗️ Foundation required for Security layer - deploying now..."
+          
+          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+            --location ${{ env.LOCATION }} \
+            --template-file infra/01-foundation.bicep \
+            --parameters \
+              location=${{ env.LOCATION }} \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+            --query 'properties.outputs' -o json)
+          
+          echo "resourceGroupName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.resourceGroupName.value')" >> $GITHUB_OUTPUT
+          echo "logAnalyticsWorkspaceId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.logAnalyticsWorkspaceId.value')" >> $GITHUB_OUTPUT
+          
+          echo "✅ Foundation deployed successfully"
+
+  deploy-security:
+    name: 🛡️ Deploy Microsoft Sentinel
+    runs-on: ubuntu-latest
+    needs: [check-foundation, deploy-foundation]
+    if: always()
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🛡️ Deploy Security Services
+        run: |
+          echo "🛡️ Deploying Microsoft Sentinel and security monitoring..."
+          
+          # Use foundation outputs or existing resources
+          RESOURCE_GROUP="${{ needs.deploy-foundation.outputs.resourceGroupName || needs.check-foundation.outputs.resourceGroupName }}"
+          LOG_WORKSPACE_NAME="${{ env.PROJECT_PREFIX }}-logs1-${{ env.LOCATION }}"
+          
+          # Get Log Analytics workspace ID
+          LOG_WORKSPACE_ID=$(az monitor log-analytics workspace show \
+            --resource-group "$RESOURCE_GROUP" \
+            --workspace-name "$LOG_WORKSPACE_NAME" \
+            --query 'id' -o tsv)
+          
+          echo "📊 Using Log Analytics: $LOG_WORKSPACE_NAME"
+          echo "🛡️ Installing Microsoft Sentinel..."
+          
+          # Deploy security services
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/02-security.bicep \
+            --parameters \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+              logAnalyticsWorkspaceId="$LOG_WORKSPACE_ID" \
+              logAnalyticsWorkspaceName="$LOG_WORKSPACE_NAME"
+          
+          echo ""
+          echo "✅ Microsoft Sentinel deployed successfully!"
+          echo ""
+          echo "🎯 Access Your Security Lab:"
+          echo "1. Go to Azure Portal → Microsoft Sentinel"
+          echo "2. Select workspace: $LOG_WORKSPACE_NAME"
+          echo "3. Configure data connectors as needed"
+          echo ""
+          echo "💡 Estimated monthly cost: ~$15-30 (1GB daily limit)"
+
+      - name: 🎯 Security Engineer Next Steps
+        run: |
+          echo "## 🛡️ Microsoft Sentinel is Ready!"
+          echo ""
+          echo "### 🔍 Immediate Actions:"
+          echo "1. **Configure Data Connectors** - Azure Activity, Security Center, etc."
+          echo "2. **Set Up Analytics Rules** - Create custom detection rules"
+          echo "3. **Configure Workbooks** - Security monitoring dashboards"
+          echo "4. **Test Incident Response** - Create test scenarios"
+          echo ""
+          echo "### 📈 Optional: Add More Infrastructure"
+          echo "- Run '💻 Deploy Compute Only' - Get VMs for testing"
+          echo "- Run '🗄️ Deploy Data Only' - Get databases for log analysis"
+          echo "- Run '🚀 Deploy Complete Lab' - Everything at once"

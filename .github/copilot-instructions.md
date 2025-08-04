@@ -51,10 +51,16 @@ When working with Azure, **ALWAYS** use these MCP server tools:
 ## CONTEXT: Deployment Strategy
 - **Modular Architecture**: Each layer (foundation, security, compute, data) deploys independently
 - **Progressive Deployment**: Foundation → Security → Compute/Data (security priority for security engineers)
-- **Workflow Method**: Use GitHub Actions UI → "🚀 Deploy ThorLabs Modular Infrastructure"
-- **Layer Selection**: Choose specific layer or `all-layers` for complete deployment
+- **Simplified Workflows**: Single-click deployment for common scenarios
+- **Smart Dependencies**: Workflows auto-deploy foundation if missing
 - **Independent Testing**: Each layer validates independently (eliminates monolithic timeouts)
 - **Enterprise Benefits**: Faster debugging, selective updates, clear dependencies
+
+### 🎯 Workflow Selection Guide:
+- **Security Engineers**: Use "🛡️ Deploy Security (Sentinel)" - gets Sentinel running quickly
+- **Full Lab Setup**: Use "🚀 Deploy Complete Lab" - everything deployed progressively
+- **Infrastructure Only**: Use "🏗️ Deploy Foundation Only" - core infrastructure for other services
+- **Custom Deployments**: Use "🚀 Deploy ThorLabs Modular Infrastructure" - choose specific layers
 
 ## CONTEXT: Azure CLI Operations  
 1. Use `mcp_azure_mcp_ser_extension_az` for all CLI commands
@@ -82,13 +88,16 @@ For detailed patterns, attach from `.github/context/`:
 
 ## QUICK REFERENCE: Modular Deployment Commands
 
-### GitHub Workflow Deployment (Recommended Method)
-**Use GitHub Actions UI** for workflow dispatch:
-1. Go to **GitHub Actions** → **🚀 Deploy ThorLabs Modular Infrastructure**
-2. Click **"Run workflow"**
-3. Select deployment options:
-   - **Deploy Layer**: `foundation` | `security` | `compute` | `data` | `all-layers`
-   - **Environment**: `lab` | `dev` | `staging`
+### GitHub Workflow Deployment (Recommended - Just Click!)
+**Simplified Single-Purpose Workflows:**
+1. **🏗️ Deploy Foundation Only** - Core infrastructure (always run first)
+2. **🛡️ Deploy Security (Sentinel)** - Microsoft Sentinel for security engineers  
+3. **🚀 Deploy Complete Lab** - Everything at once (foundation + security + compute + data)
+
+**Advanced Modular Workflow:**
+- **🚀 Deploy ThorLabs Modular Infrastructure** - Choose specific layers
+  - Deploy Layer: `foundation` | `security` | `compute` | `data` | `all-layers`
+  - Environment: `lab` | `dev` | `staging`
 
 ### CLI Deployment (Alternative - requires workflow permissions)
 ```bash

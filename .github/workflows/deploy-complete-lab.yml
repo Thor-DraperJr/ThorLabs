@@ -1,0 +1,207 @@
+name: 🚀 Deploy Complete Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'lab'
+        type: choice
+        options:
+          - lab
+          - dev
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  LOCATION: 'eastus2'
+  PROJECT_PREFIX: 'thorlabs'
+
+jobs:
+  deploy-foundation:
+    name: 🏗️ Foundation Layer
+    runs-on: ubuntu-latest
+    
+    outputs:
+      resourceGroupName: ${{ steps.foundation.outputs.resourceGroupName }}
+      keyVaultName: ${{ steps.foundation.outputs.keyVaultName }}
+      logAnalyticsWorkspaceId: ${{ steps.foundation.outputs.logAnalyticsWorkspaceId }}
+      vnetId: ${{ steps.foundation.outputs.vnetId }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🏗️ Deploy Foundation
+        id: foundation
+        run: |
+          echo "🏗️ Deploying foundation infrastructure..."
+          
+          DEPLOYMENT_OUTPUT=$(az deployment sub create \
+            --location ${{ env.LOCATION }} \
+            --template-file infra/01-foundation.bicep \
+            --parameters \
+              location=${{ env.LOCATION }} \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+            --query 'properties.outputs' -o json)
+          
+          echo "resourceGroupName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.resourceGroupName.value')" >> $GITHUB_OUTPUT
+          echo "keyVaultName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.keyVaultName.value')" >> $GITHUB_OUTPUT
+          echo "logAnalyticsWorkspaceId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.logAnalyticsWorkspaceId.value')" >> $GITHUB_OUTPUT
+          echo "vnetId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.vnetId.value')" >> $GITHUB_OUTPUT
+          
+          echo "✅ Foundation deployed"
+
+  deploy-security:
+    name: 🛡️ Security Layer (Sentinel)
+    runs-on: ubuntu-latest
+    needs: deploy-foundation
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🛡️ Deploy Microsoft Sentinel
+        run: |
+          echo "🛡️ Deploying Microsoft Sentinel..."
+          
+          LOG_WORKSPACE_NAME="${{ env.PROJECT_PREFIX }}-logs1-${{ env.LOCATION }}"
+          
+          az deployment group create \
+            --resource-group "${{ needs.deploy-foundation.outputs.resourceGroupName }}" \
+            --template-file infra/02-security.bicep \
+            --parameters \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+              logAnalyticsWorkspaceId="${{ needs.deploy-foundation.outputs.logAnalyticsWorkspaceId }}" \
+              logAnalyticsWorkspaceName="$LOG_WORKSPACE_NAME"
+          
+          echo "✅ Microsoft Sentinel deployed"
+
+  deploy-compute:
+    name: 💻 Compute Layer (VMs)
+    runs-on: ubuntu-latest
+    needs: deploy-foundation
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 💻 Deploy Virtual Machines
+        run: |
+          echo "💻 Deploying virtual machines..."
+          
+          # Get subnet ID
+          SUBNET_DEFAULT=$(az network vnet subnet show \
+            --resource-group "${{ needs.deploy-foundation.outputs.resourceGroupName }}" \
+            --vnet-name "${{ env.PROJECT_PREFIX }}-vnet1-${{ env.LOCATION }}" \
+            --name "default" \
+            --query 'id' -o tsv)
+          
+          az deployment group create \
+            --resource-group "${{ needs.deploy-foundation.outputs.resourceGroupName }}" \
+            --template-file infra/03-compute.bicep \
+            --parameters \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+              vnetId="${{ needs.deploy-foundation.outputs.vnetId }}" \
+              subnetIds="{\"default\":\"$SUBNET_DEFAULT\"}" \
+              keyVaultName="${{ needs.deploy-foundation.outputs.keyVaultName }}" \
+              logAnalyticsWorkspaceId="${{ needs.deploy-foundation.outputs.logAnalyticsWorkspaceId }}" \
+              adminUsername="thorlabsadmin" \
+              adminPassword="${{ secrets.ADMIN_PASSWORD }}"
+          
+          echo "✅ Virtual machines deployed"
+
+  deploy-data:
+    name: 🗄️ Data Layer (Databases)
+    runs-on: ubuntu-latest
+    needs: deploy-foundation
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🗄️ Deploy Databases
+        run: |
+          echo "🗄️ Deploying databases and storage..."
+          
+          # Get subnet ID
+          SUBNET_DATA=$(az network vnet subnet show \
+            --resource-group "${{ needs.deploy-foundation.outputs.resourceGroupName }}" \
+            --vnet-name "${{ env.PROJECT_PREFIX }}-vnet1-${{ env.LOCATION }}" \
+            --name "data" \
+            --query 'id' -o tsv)
+          
+          az deployment group create \
+            --resource-group "${{ needs.deploy-foundation.outputs.resourceGroupName }}" \
+            --template-file infra/04-data.bicep \
+            --parameters \
+              environment=${{ github.event.inputs.environment }} \
+              projectPrefix=${{ env.PROJECT_PREFIX }} \
+              vnetId="${{ needs.deploy-foundation.outputs.vnetId }}" \
+              subnetIds="{\"data\":\"$SUBNET_DATA\"}" \
+              keyVaultName="${{ needs.deploy-foundation.outputs.keyVaultName }}" \
+              sqlAdminUsername="thorlabsadmin" \
+              sqlAdminPassword="${{ secrets.ADMIN_PASSWORD }}" \
+              enableAzureADAuth=true \
+              azureADAdminUpn="${{ secrets.AZURE_AD_ADMIN_UPN }}" \
+              azureADAdminObjectId="${{ secrets.AZURE_AD_ADMIN_OBJECT_ID }}"
+          
+          echo "✅ Databases deployed"
+
+  deployment-summary:
+    name: 📋 Complete Lab Summary
+    runs-on: ubuntu-latest
+    needs: [deploy-foundation, deploy-security, deploy-compute, deploy-data]
+    if: always()
+    
+    steps:
+      - name: 🎉 Complete Lab Deployed
+        run: |
+          echo "## 🎉 ThorLabs Complete Infrastructure Deployed!"
+          echo ""
+          echo "### 🏗️ Infrastructure Summary:"
+          echo "- 🏗️ Foundation: Resource Group, VNet, Key Vault, Log Analytics"
+          echo "- 🛡️ Security: Microsoft Sentinel, Security Monitoring"
+          echo "- 💻 Compute: Windows Server VM with Auto-shutdown"
+          echo "- 🗄️ Data: SQL Database, Storage Account"
+          echo ""
+          echo "### 🔗 Access Information:"
+          echo "- **Resource Group**: ${{ needs.deploy-foundation.outputs.resourceGroupName }}"
+          echo "- **Microsoft Sentinel**: Available in Log Analytics workspace"
+          echo "- **Virtual Machine**: Connect via RDP (check Azure Portal for public IP)"
+          echo "- **SQL Database**: Available with Azure AD authentication"
+          echo ""
+          echo "### 💰 Estimated Monthly Cost: ~$50-100"
+          echo "- Log Analytics + Sentinel: ~$15-30"
+          echo "- VM (Standard_B2s): ~$30-40"
+          echo "- SQL Database (Basic): ~$5"
+          echo "- Storage + Networking: ~$5-10"
+          echo ""
+          echo "### 🎯 Next Steps:"
+          echo "1. **Configure Sentinel** - Set up data connectors and analytics rules"
+          echo "2. **Connect to VM** - Use RDP to access your Windows server"
+          echo "3. **Set up monitoring** - Configure alerts and dashboards"
+          echo "4. **Test scenarios** - Practice security incident response"
