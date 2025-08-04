@@ -62,10 +62,11 @@ jobs:
         run: |
           echo "🖥️ Testing basic template validation..."
           # Use what-if instead of validate to avoid Azure CLI response consumption issue
+          # Test with Azure AD auth disabled for simpler validation
           az deployment group what-if \
             --resource-group thorlabs-test-rg \
             --template-file infra/lab.bicep \
-            --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD" \
+            --parameters @infra/lab.parameters.json adminPassword="$ADMIN_PASSWORD" enableAzureADAuth=false \
             --result-format ResourceIdOnly \
             --no-pretty-print
           echo "✅ Template validation passed"
