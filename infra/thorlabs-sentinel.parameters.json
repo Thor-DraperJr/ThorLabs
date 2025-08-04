@@ -25,6 +25,12 @@
     },
     "enableDataConnectors": {
       "value": true
+    },
+    "useExistingWorkspace": {
+      "value": true
+    },
+    "existingWorkspaceResourceGroup": {
+      "value": "thorlabs-rg"
     }
   }
 }

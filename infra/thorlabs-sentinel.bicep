@@ -31,11 +31,23 @@ param publicNetworkAccessForIngestion string = 'Enabled'
 @allowed(['Enabled', 'Disabled'])
 param publicNetworkAccessForQuery string = 'Enabled'
 
+@description('Use existing Log Analytics workspace instead of creating new one.')
+param useExistingWorkspace bool = true
+
+@description('Existing workspace resource group (if different from current deployment).')
+param existingWorkspaceResourceGroup string = resourceGroup().name
+
 @description('Enable Sentinel data connectors for common Microsoft services.')
 param enableDataConnectors bool = true
 
-// Log Analytics Workspace for Sentinel
-resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2025-02-01' = {
+// Reference existing Log Analytics Workspace (if useExistingWorkspace is true)
+resource existingLogAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2025-02-01' existing = if (useExistingWorkspace) {
+  name: workspaceName
+  scope: resourceGroup(existingWorkspaceResourceGroup)
+}
+
+// Create new Log Analytics Workspace for Sentinel (only if useExistingWorkspace is false)
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2025-02-01' = if (!useExistingWorkspace) {
   name: workspaceName
   location: location
   properties: {
@@ -64,6 +76,9 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2025-02
   }
 }
 
+// Get the correct workspace reference
+var workspaceReference = useExistingWorkspace ? existingLogAnalyticsWorkspace : logAnalyticsWorkspace
+
 // Security Insights (Sentinel) Solution
 resource securityInsights 'Microsoft.OperationsManagement/solutions@2015-11-01-preview' = {
   name: 'SecurityInsights(${workspaceName})'
@@ -75,7 +90,7 @@ resource securityInsights 'Microsoft.OperationsManagement/solutions@2015-11-01-p
     promotionCode: ''
   }
   properties: {
-    workspaceResourceId: logAnalyticsWorkspace.id
+    workspaceResourceId: workspaceReference.id
     containedResources: []
   }
   tags: {
@@ -87,10 +102,17 @@ resource securityInsights 'Microsoft.OperationsManagement/solutions@2015-11-01-p
   }
 }
 
-// Sentinel Onboarding State
-resource sentinelOnboardingState 'Microsoft.SecurityInsights/onboardingStates@2023-02-01' = {
-  scope: logAnalyticsWorkspace
-  name: 'default'
+// Sentinel Onboarding State for existing workspace
+resource sentinelOnboardingStateExisting 'Microsoft.SecurityInsights/onboardingStates@2023-02-01' = if (useExistingWorkspace) {
+  name: '${existingLogAnalyticsWorkspace.name}/default'
+  properties: {
+    customerManagedKey: false
+  }
+}
+
+// Sentinel Onboarding State for new workspace  
+resource sentinelOnboardingStateNew 'Microsoft.SecurityInsights/onboardingStates@2023-02-01' = if (!useExistingWorkspace) {
+  name: '${logAnalyticsWorkspace.name}/default'
   properties: {
     customerManagedKey: false
   }
@@ -298,15 +320,14 @@ SecurityEvent
   }
 }
 
-// Workbook for ThorLabs Security Overview
-resource thorlabsWorkbook 'Microsoft.SecurityInsights/workbooks@2023-02-01' = {
-  scope: logAnalyticsWorkspace
-  name: 'thorlabs-security-overview'
+// Workbook for ThorLabs Security Overview (existing workspace)
+resource thorlabsWorkbookExisting 'Microsoft.SecurityInsights/workbooks@2023-02-01' = if (useExistingWorkspace) {
+  name: guid('thorlabs-security-overview-existing', existingLogAnalyticsWorkspace.id)
   properties: {
     displayName: 'ThorLabs Security Overview'
     description: 'Security monitoring dashboard for ThorLabs environment'
     category: 'sentinel'
-    sourceId: logAnalyticsWorkspace.id
+    sourceId: existingLogAnalyticsWorkspace.id
     serializedData: '''{
       "version": "Notebook/1.0",
       "items": [
@@ -343,21 +364,65 @@ resource thorlabsWorkbook 'Microsoft.SecurityInsights/workbooks@2023-02-01' = {
   }
 }
 
+// Workbook for ThorLabs Security Overview (new workspace)
+resource thorlabsWorkbookNew 'Microsoft.SecurityInsights/workbooks@2023-02-01' = if (!useExistingWorkspace) {
+  name: guid('thorlabs-security-overview-new', logAnalyticsWorkspace.id)
+  properties: {
+    displayName: 'ThorLabs Security Overview'
+    description: 'Security monitoring dashboard for ThorLabs environment'
+    category: 'sentinel'
+    sourceId: logAnalyticsWorkspace.id
+    serializedData: '''{
+      "version": "Notebook/1.0",
+      "items": [
+        {
+          "type": 1,
+          "content": {
+            "json": "# ThorLabs Security Operations Center\\n\\nWelcome to the ThorLabs SOC dashboard. This workbook provides an overview of security events and incidents in your lab environment."
+          }
+        },
+        {
+          "type": 3,
+          "content": {
+            "version": "KqlItem/1.0",
+            "query": "SecurityEvent\\n| where TimeGenerated > ago(24h)\\n| summarize EventCount = count() by Computer, EventID\\n| order by EventCount desc\\n| take 10",
+            "size": 0,
+            "title": "Top Security Events (Last 24h)",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          }
+        },
+        {
+          "type": 3,
+          "content": {
+            "version": "KqlItem/1.0",
+            "query": "SigninLogs\\n| where TimeGenerated > ago(24h)\\n| where UserPrincipalName contains \\"thorlabs\\"\\n| summarize LoginCount = count() by UserPrincipalName, ResultType\\n| order by LoginCount desc",
+            "size": 0,
+            "title": "Login Activity (Last 24h)",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          }
+        }
+      ]
+    }'''
+  }
+}
+
 // Outputs
 @description('Log Analytics Workspace Name')
-output workspaceName string = logAnalyticsWorkspace.name
+output workspaceName string = useExistingWorkspace ? existingLogAnalyticsWorkspace.name : logAnalyticsWorkspace.name
 
 @description('Log Analytics Workspace Resource ID')
-output workspaceResourceId string = logAnalyticsWorkspace.id
+output workspaceResourceId string = useExistingWorkspace ? existingLogAnalyticsWorkspace.id : logAnalyticsWorkspace.id
 
 @description('Log Analytics Workspace Customer ID')
-output workspaceCustomerId string = logAnalyticsWorkspace.properties.customerId
+output workspaceCustomerId string = useExistingWorkspace ? existingLogAnalyticsWorkspace.properties.customerId : logAnalyticsWorkspace.properties.customerId
 
 @description('Sentinel Workspace URL')
 output sentinelUrl string = 'https://portal.azure.com/#@${tenant().tenantId}/blade/Microsoft_Azure_Security_Insights/MainMenuBlade/0/subscriptionId/${subscription().subscriptionId}/resourceGroup/${resourceGroup().name}/workspaceName/${workspaceName}'
 
 @description('Log Analytics Workspace Location')
-output workspaceLocation string = logAnalyticsWorkspace.location
+output workspaceLocation string = useExistingWorkspace ? existingLogAnalyticsWorkspace.location : logAnalyticsWorkspace.location
 
 @description('Security Insights Solution Name')
 output securityInsightsSolutionName string = securityInsights.name
