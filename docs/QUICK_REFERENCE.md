@@ -1,4 +1,4 @@
-# ThorLabs Lab - Quick Reference Card
+# ThorLabs Lab - Quick Reference
 
 ## 🚀 Quick Deploy Commands
 
@@ -6,18 +6,15 @@
 # Interactive guided deployment (recommended)
 ./scripts/deploy-lab.sh
 
-# Direct core deployment (basic lab)
+# Direct Azure CLI deployment
 az deployment sub create \
   --location eastus2 \
   --template-file infra/master-deployment.bicep \
   --parameters adminPassword="YourPassword123!"
-
-# Deploy with Sentinel security monitoring
-az deployment sub create \
-  --location eastus2 \
-  --template-file infra/master-deployment.bicep \
-  --parameters enableSentinel=true adminPassword="YourPassword123!"
 ```
+
+> 📖 **Detailed deployment options**: See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)  
+> ⚙️ **GitHub Actions setup**: See [GITHUB_WORKFLOWS.md](GITHUB_WORKFLOWS.md)
 
 ## ⚙️ Management Commands
 
@@ -107,25 +104,33 @@ mstsc /v:<windows-public-ip>
 ## 🎯 Common Workflows
 
 ### Development Setup
-1. Deploy core lab: `./scripts/deploy-lab.sh` → Core
-2. Connect to Ubuntu: `ssh thorlabsadmin@<ip>`
-3. Install dev tools: `sudo apt update && sudo apt install git docker.io`
+1. Deploy: `./scripts/deploy-lab.sh` → Core
+2. Connect: `ssh thorlabsadmin@<ip>`
+3. Install tools: `sudo apt update && sudo apt install git docker.io`
 
 ### Container Testing  
-1. Deploy with containers: Enable container services in deployment
-2. Login to ACR: `az acr login --name thorlabsacr1eastus2`
-3. Build/push images: `docker build . -t thorlabsacr1eastus2.azurecr.io/myapp:latest`
+1. Deploy with containers enabled
+2. Login: `az acr login --name thorlabsacr1eastus2`
+3. Build/push: `docker build . -t thorlabsacr1eastus2.azurecr.io/myapp:latest`
 
 ### Database Development
-1. Deploy with databases: Enable database services in deployment  
-2. Connect to SQL: Use connection string from deployment output
-3. Create schemas: Use Azure Data Studio or SSMS
+1. Deploy with databases enabled
+2. Connect using connection strings from deployment output
+3. Use Azure Data Studio or SSMS for management
 
 ### Cost Management
 1. Monitor: `./scripts/manage-lab.sh show-costs`
-2. Daily shutdown: Auto-configured at 7 PM ET
-3. Manual stop: `./scripts/manage-lab.sh stop-vms`
-4. Cleanup: `./scripts/manage-lab.sh cleanup` (when done)
+2. Stop VMs: `./scripts/manage-lab.sh stop-vms`
+3. Cleanup when done: `./scripts/manage-lab.sh cleanup`
+
+---
+
+## 📚 Additional Documentation
+
+- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Complete deployment procedures
+- **[GITHUB_WORKFLOWS.md](GITHUB_WORKFLOWS.md)** - GitHub Actions & automation
+- **[REPO_GUIDE.md](REPO_GUIDE.md)** - Project structure & navigation
+- **[AZURE_AD_AUTHENTICATION.md](AZURE_AD_AUTHENTICATION.md)** - Identity setup
 
 ---
 **💡 Tip**: Bookmark this page for quick reference during lab operations!

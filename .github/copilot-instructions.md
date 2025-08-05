@@ -1,11 +1,34 @@
-# ThorLabs Azure Lab Environment: Copilot Instructions
+# ThorLabs Azure Lab Environment: AI Agent Instructions
 
-## ALWAYS: Use Azure MCP Server Tools First
-When working with Azure, **ALWAYS** use these MCP server tools:
-- `mcp_azure_mcp_ser_bestpractices` → Before generating any Azure code
+## 🚨 ANTI-SPRAWL PROTOCOL: Prevention Over Cleanup
+**CRITICAL**: Prevent bloat before it starts. Question EVERY file creation:
+
+### Before Creating ANY File:
+1. **"Does this already exist?"** → Search existing files first
+2. **"Is this just a wrapper?"** → Use direct commands instead of scripts
+3. **"Will this duplicate content?"** → Consolidate into existing files
+4. **"Can this be one command?"** → Don't script what's already simple
+
+### Red Flags That Cause Sprawl:
+- ❌ **Wrapper Scripts**: If it's just `az` commands, don't script it
+- ❌ **Meta Documentation**: Docs about docs, guides about guides
+- ❌ **Multiple README files**: One per directory maximum
+- ❌ **"Helper" scripts**: Usually unnecessary complexity
+- ❌ **Template variations**: One template per purpose, use parameters
+
+### When to Create Files:
+- ✅ **Complex multi-step processes** that can't be one command
+- ✅ **Reusable templates** with actual parameters
+- ✅ **Essential documentation** that doesn't exist elsewhere
+- ✅ **Configuration files** for tools that require them
+
+## ALWAYS: Use Microsoft Documentation + Azure CLI First
+When working with Azure, **ALWAYS** follow this reliable workflow:
+- `mcp_microsoft-doc_microsoft_docs_search` → For current best practices and API versions
 - `mcp_azure_mcp_ser_bicepschema` → Before creating Bicep resources  
 - `mcp_azure_mcp_ser_extension_az` → For Azure CLI operations
 - `mcp_azure_mcp_ser_extension_azd` → For Azure Developer CLI
+- **AVOID**: `mcp_azure_mcp_ser_bestpractices` → Unreliable, contradictory documentation
 
 ## ALWAYS: Follow ThorLabs Enterprise Patterns
 - **Naming**: `thorlabs-{service}{number}-{region}` (e.g., `thorlabs-kv1-eastus2`)
@@ -13,109 +36,80 @@ When working with Azure, **ALWAYS** use these MCP server tools:
 - **IaC**: Modular Bicep templates only (never monolithic/Terraform/ARM)
 - **Security**: Managed Identity preferred, never hardcode secrets
 - **Architecture**: Layered deployment model (Foundation → Security → Compute → Data)
+- **Commands Over Scripts**: Use direct Azure CLI commands instead of wrapper scripts
+- **One Source of Truth**: Single template per capability, no duplicates
 
-## ENTERPRISE ARCHITECTURE: Modular Infrastructure Layers
-**CRITICAL**: Use the layered deployment approach for all infrastructure:
+## MODULAR INFRASTRUCTURE: 4-Layer Architecture
+**Foundation → Security → Compute → Data** (deploy in order)
 
-### Layer 1: Foundation (`01-foundation.bicep`)
-- **Purpose**: Core infrastructure dependencies
-- **Contains**: Resource Groups, Networking (VNet/Subnets), Key Vault, Log Analytics
-- **Dependencies**: None (foundation layer)
-- **Deploy First**: Always deploy this layer before others
+### Layer Files & Dependencies
+- **01-foundation.bicep**: Resource Groups, VNet, Key Vault, Log Analytics *(no dependencies)*
+- **02-security.bicep**: Microsoft Sentinel, Security monitoring *(needs foundation)*  
+- **03-compute.bicep**: VMs, Network interfaces, Auto-shutdown *(needs foundation)*
+- **04-data.bicep**: SQL, Storage, PostgreSQL, Cosmos DB *(needs foundation)*
 
-### Layer 2: Security (`02-security.bicep`) 
-- **Purpose**: Security monitoring and compliance
-- **Contains**: Microsoft Sentinel, Security data connectors, Monitoring
-- **Dependencies**: Foundation layer (Log Analytics workspace)
-- **Priority**: Deploy immediately after foundation for security engineers
+### Bicep Best Practices
+1. **Check layer** → Call `mcp_microsoft-doc_microsoft_docs_search` for current best practices
+2. **Get schemas** → Call `mcp_azure_mcp_ser_bicepschema` for resource definitions
+3. **Use modules** in `infra/modules/` for reusable components
+4. **Parameter validation** with `@allowed` decorators
+5. **Proper outputs** for layer dependencies
+6. **Single purpose**: One template per capability, avoid feature creep
+7. **No duplicates**: Check existing templates before creating new ones
 
-### Layer 3: Compute (`03-compute.bicep`)
-- **Purpose**: Virtual machines and compute resources
-- **Contains**: VMs, Network interfaces, Auto-shutdown, Monitoring agents
-- **Dependencies**: Foundation layer (VNet, Key Vault)
+## DEPLOYMENT: GitHub Workflows (One-Click)
+- **🏗️ Foundation Only**: Core infrastructure first
+- **🛡️ Security (Sentinel)**: Priority for security engineers
+- **🚀 Complete Lab**: Everything deployed progressively
+- **� Modular Infrastructure**: Choose specific layers
 
-### Layer 4: Data (`04-data.bicep`)
-- **Purpose**: Database and storage services  
-- **Contains**: SQL Server/Database, Storage Accounts, PostgreSQL, Cosmos DB
-- **Dependencies**: Foundation layer (VNet, Key Vault)
+## DEVELOPMENT ENVIRONMENT
+- **Bash aliases**: 50+ shortcuts (`gs`, `ga`, `gc`, `gp`, `projects`, `c`)
+- **Context files**: `.github/context/development-environment.md`
+- **Shell**: Loads with `bash -i` providing all aliases
 
-## CONTEXT: Creating Modular Bicep Templates
-1. **Identify the layer** - Determine which infrastructure layer the resource belongs to
-2. Call `mcp_azure_mcp_ser_bestpractices` first
-3. Call `mcp_azure_mcp_ser_bicepschema` for resource schemas
-4. **Use modules** - Create reusable modules in `infra/modules/` directory
-5. **Follow dependency flow** - Foundation → Security → Compute/Data
-6. Include parameter validation with `@allowed` decorators
-7. Always include proper outputs for dependent layers
+## 📚 LESSONS FROM CLEANUP (Apply Going Forward)
+**Root Causes of Sprawl We Eliminated:**
 
-## CONTEXT: Deployment Strategy
-- **Modular Architecture**: Each layer (foundation, security, compute, data) deploys independently
-- **Progressive Deployment**: Foundation → Security → Compute/Data (security priority for security engineers)
-- **Simplified Workflows**: Single-click deployment for common scenarios
-- **Smart Dependencies**: Workflows auto-deploy foundation if missing
-- **Independent Testing**: Each layer validates independently (eliminates monolithic timeouts)
-- **Enterprise Benefits**: Faster debugging, selective updates, clear dependencies
+### Script Bloat Pattern:
+- **Problem**: Created 330-line script to run `az deployment group create`
+- **Solution**: Use Azure CLI directly, document in QUICK_COMMANDS.md
+- **Rule**: If it's 3 Azure CLI commands or fewer, no script needed
 
-### 🎯 Workflow Selection Guide:
-- **Security Engineers**: Use "🛡️ Deploy Security (Sentinel)" - gets Sentinel running quickly
-- **Full Lab Setup**: Use "🚀 Deploy Complete Lab" - everything deployed progressively
-- **Infrastructure Only**: Use "🏗️ Deploy Foundation Only" - core infrastructure for other services
-- **Custom Deployments**: Use "🚀 Deploy ThorLabs Modular Infrastructure" - choose specific layers
+### Documentation Duplication:
+- **Problem**: 4 guides covering same deployment process (921 lines total)
+- **Solution**: One guide with clear sections, link don't duplicate
+- **Rule**: Write once, reference everywhere
 
-## CONTEXT: Azure CLI Operations  
-1. Use `mcp_azure_mcp_ser_extension_az` for all CLI commands
-2. Follow ThorLabs naming conventions
-3. Include proper error handling
-4. Use `what-if` validation before deployment
+### Template Multiplication:
+- **Problem**: 3 storage templates doing identical things
+- **Solution**: One template with parameters for variations
+- **Rule**: Parameters > Multiple templates
 
-## ENTERPRISE WORKFLOW: Modular Deployment Benefits
-- **🚀 Faster Iteration**: Deploy only changed layers
-- **🛡️ Security First**: Security engineers can deploy foundation + security independently  
-- **🔧 Independent Testing**: Each layer tested in isolation
-- **📈 Scalability**: Same pattern works for lab → enterprise
-- **🎯 Clear Ownership**: Each layer has focused responsibility
-- **⚡ No Timeouts**: Eliminates Azure CLI API issues from oversized templates
+### Meta-Work Trap:
+- **Problem**: Created docs about cleanup instead of just cleaning
+- **Solution**: Do the work, minimal documentation
+- **Rule**: Functionality over process documentation
 
-## PROHIBITED
-❌ Monolithic templates ❌ Terraform/ARM templates ❌ Hardcoded secrets ❌ Generic Ubuntu ❌ Bypassing MCP server ❌ Cross-layer dependencies without proper outputs
+## PROHIBITED ❌
+- **Wrapper Scripts**: No scripts that just run `az` commands
+- **Duplicate Templates**: One template per capability only
+- **Meta Documentation**: No docs about docs, guides about guides  
+- **Multiple READMEs**: Max one per directory
+- **Monolithic Templates**: Keep templates focused and modular
+- **Terraform/ARM**: Bicep only for Azure infrastructure
+- **Hardcoded Secrets**: Use managed identities and Key Vault
+- **Generic Ubuntu**: Use specific, security-hardened images
+- **Unreliable MCP Tools**: Avoid `mcp_azure_mcp_ser_bestpractices` (contradictory docs)
 
-## CONTEXT FILES
-For detailed patterns, attach from `.github/context/`:
-- `bicep-patterns.md` - Template examples and schemas
-- `azure-mcp-reference.md` - MCP server tool usage
-- `security-standards.md` - Security configurations
-- `development-guide.md` - Complete development workflows
+## ✅ PREFERRED PATTERNS
+- **Direct Commands**: `az deployment group create` over wrapper scripts
+- **Simple Documentation**: Commands and examples over lengthy guides
+- **Template Parameters**: One template with parameters vs multiple templates
+- **Consolidated Files**: Merge similar content instead of creating new files
 
-## QUICK REFERENCE: Modular Deployment Commands
-
-### GitHub Workflow Deployment (Recommended - Just Click!)
-**Simplified Single-Purpose Workflows:**
-1. **🏗️ Deploy Foundation Only** - Core infrastructure (always run first)
-2. **🛡️ Deploy Security (Sentinel)** - Microsoft Sentinel for security engineers  
-3. **🚀 Deploy Complete Lab** - Everything at once (foundation + security + compute + data)
-
-**Advanced Modular Workflow:**
-- **🚀 Deploy ThorLabs Modular Infrastructure** - Choose specific layers
-  - Deploy Layer: `foundation` | `security` | `compute` | `data` | `all-layers`
-  - Environment: `lab` | `dev` | `staging`
-
-### CLI Deployment (Alternative - requires workflow permissions)
-```bash
-# Deploy foundation only (prerequisite for all others)
-gh workflow run deploy-modular.yml --field deployLayer=foundation --field environment=lab
-
-# Deploy security layer (Microsoft Sentinel - priority for security engineers)  
-gh workflow run deploy-modular.yml --field deployLayer=security --field environment=lab
-
-# Deploy compute layer (Virtual machines)
-gh workflow run deploy-modular.yml --field deployLayer=compute --field environment=lab
-
-# Deploy data layer (Databases and storage)
-gh workflow run deploy-modular.yml --field deployLayer=data --field environment=lab
-
-# Deploy all layers progressively
-gh workflow run deploy-modular.yml --field deployLayer=all-layers --field environment=lab
-```
+## CONTEXT REFERENCE
+**Quick access**: `.github/context/` contains all detailed patterns and procedures
 
 ### Local Testing
 ```bash
@@ -127,15 +121,36 @@ az bicep build --file infra/02-security.bicep --stdout > /dev/null
 az deployment sub what-if --location eastus2 --template-file infra/01-foundation.bicep
 ```
 
-### Current File Structure
+### Template Validation Workflow
+```bash
+# 1. JSON syntax validation (for ARM templates)
+python3 -m json.tool template.json > /dev/null
+
+# 2. Azure CLI validation (most reliable)
+az deployment group validate --resource-group rg-name --template-file template.json
+
+# 3. ARM template compilation check
+az bicep decompile --file template.json --force
 ```
-infra/
-├── 01-foundation.bicep    # Core infrastructure (RG, VNet, KeyVault, Logs)
-├── 02-security.bicep      # Microsoft Sentinel and security monitoring
-├── 03-compute.bicep       # Virtual machines and compute resources  
-├── 04-data.bicep          # Databases and storage services
-└── modules/               # Reusable Bicep modules
-    ├── networking.bicep   # VNet and subnets
-    ├── keyvault.bicep     # Key Vault configuration
-    └── log-analytics.bicep # Log Analytics workspace
+
+**Note**: VS Code ARM template warnings are often false positives. Use Azure CLI validation for reliable results.
+
+### Current Clean Structure (Post-Consolidation)
 ```
+ThorLabs/                          # 33 focused files total
+├── README.md                      # Simple overview
+├── QUICK_COMMANDS.md              # All Azure CLI commands
+├── docs/                          # Essential docs only (5 files)
+├── infra/                         # Core templates + modules
+│   ├── 01-foundation.bicep        # Core infrastructure layer
+│   ├── 02-security.bicep          # Security & Sentinel monitoring
+│   ├── 03-compute.bicep           # VMs & compute resources  
+│   ├── 04-data.bicep              # Databases & storage
+│   ├── enhanced-lab.bicep         # Complete lab deployment
+│   ├── master-deployment.bicep    # Orchestration template
+│   └── modules/                   # Reusable components
+├── logicapps/SecCpScuControl/     # Security Copilot Logic Apps (3 files)
+└── policies/                      # Azure governance policies
+```
+
+**Maintain This Simplicity**: Question every new file against this clean structure.

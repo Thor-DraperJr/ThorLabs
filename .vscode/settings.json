@@ -2,5 +2,18 @@
     "python.analysis.extraPaths": [
         "c:\\Users\\thordraper\\.vscode\\extensions\\ms-security.ms-sentinel-0.1.0\\python",
         "/home/vscode/.vscode-remote/extensions/ms-security.ms-sentinel-0.1.0/python"
-    ]
+    ],
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.profiles.linux": {
+        "bash": {
+            "path": "/bin/bash",
+            "args": ["-i"]
+        }
+    },
+    "files.associations": {
+        "*.bicep": "bicep"
+    },
+    "terminal.integrated.shellIntegration.enabled": true,
+    "git.terminalAuthentication": false,
+    "chat.tools.autoApprove": true
 }
