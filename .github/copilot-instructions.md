@@ -26,9 +26,14 @@
 When working with Azure, **ALWAYS** follow this reliable workflow:
 - `mcp_microsoft-doc_microsoft_docs_search` → For current best practices and API versions
 - `mcp_azure_mcp_ser_bicepschema` → Before creating Bicep resources  
-- `mcp_azure_mcp_ser_extension_az` → For Azure CLI operations
+- `mcp_azure_mcp_ser_extension_az` → For Azure CLI operations and REST API calls
 - `mcp_azure_mcp_ser_extension_azd` → For Azure Developer CLI
 - **AVOID**: `mcp_azure_mcp_ser_bestpractices` → Unreliable, contradictory documentation
+
+### Proven Azure MCP Server Capabilities
+- **Logic App Connection Updates**: Use `az rest` commands to fix "Unauthenticated" connections
+- **Resource Management**: Direct REST API calls via `mcp_azure_mcp_ser_extension_az`
+- **Connection Authentication**: Update grant types using PUT requests to connection endpoints
 
 ## ALWAYS: Follow ThorLabs Enterprise Patterns
 - **Naming**: `thorlabs-{service}{number}-{region}` (e.g., `thorlabs-kv1-eastus2`)
