@@ -2,7 +2,12 @@
   "name": "ThorLabs Azure Development",
   "image": "mcr.microsoft.com/devcontainers/universal:2",
   "features": {
-    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/devcontainers/features/azure-cli:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    },
     "ghcr.io/azure/azure-dev/azd:0": {}
   },
   "customizations": {
@@ -12,9 +17,10 @@
         "ms-azuretools.vscode-bicep",
         "ms-vscode.azurecli",
         "GitHub.copilot",
-        "GitHub.copilot-chat"
+        "GitHub.copilot-chat",
+        "ms-azuretools.vscode-azurestorage"
       ]
     }
   },
-  "postCreateCommand": "az bicep install"
+  "postCreateCommand": "az bicep install && chmod +x scripts/*.sh && echo '🚀 ThorLabs environment ready! Azure CLI and GitHub CLI installed.'"
 }
