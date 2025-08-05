@@ -22,18 +22,30 @@
 - ✅ **Essential documentation** that doesn't exist elsewhere
 - ✅ **Configuration files** for tools that require them
 
-## ALWAYS: Use Microsoft Documentation + Azure CLI First
-When working with Azure, **ALWAYS** follow this reliable workflow:
-- `mcp_microsoft-doc_microsoft_docs_search` → For current best practices and API versions
-- `mcp_azure_mcp_ser_bicepschema` → Before creating Bicep resources  
-- `mcp_azure_mcp_ser_extension_az` → For Azure CLI operations and REST API calls
-- `mcp_azure_mcp_ser_extension_azd` → For Azure Developer CLI
-- **AVOID**: `mcp_azure_mcp_ser_bestpractices` → Unreliable, contradictory documentation
+## FRONTIER COLLABORATION: Advanced AI-Human Workflow
+Use cutting-edge VS Code + GitHub Copilot capabilities instead of static documentation:
 
-### Proven Azure MCP Server Capabilities
-- **Logic App Connection Updates**: Use `az rest` commands to fix "Unauthenticated" connections
-- **Resource Management**: Direct REST API calls via `mcp_azure_mcp_ser_extension_az`
-- **Connection Authentication**: Update grant types using PUT requests to connection endpoints
+### **Dynamic References (VS Code 1.10+)**
+- `@workspace` → Access entire solution context
+- `@azure` → Scope to Azure domain and resources
+- `#filename.md` → Reference specific files
+- `#MethodName` → Reference specific functions/classes
+
+### **Reusable Prompt Templates** 
+- `#prompt:azure-connection-fix` → Load Logic Apps connection fix workflow
+- `#prompt:bicep-template-create` → Load ThorLabs Bicep creation template
+- Available in `.github/prompts/` folder
+
+### **Live Tool Integration**
+- **Azure MCP Server**: Real-time Azure resource interaction over static docs
+- **Microsoft Docs Search**: Current information over outdated context files
+- **Guided Chat**: AI asks clarifying questions vs. assuming context
+
+### **Context Sources (Priority Order)**
+1. **Live Azure resources** via MCP server
+2. **Current workspace** via `@workspace`  
+3. **Microsoft documentation** via docs search
+4. **Proven capabilities** in `.github/context/` (minimal)
 
 ## ALWAYS: Follow ThorLabs Enterprise Patterns
 - **Naming**: `thorlabs-{service}{number}-{region}` (e.g., `thorlabs-kv1-eastus2`)
